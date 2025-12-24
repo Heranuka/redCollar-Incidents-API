@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"redCollar/internal/domain"
 	"time"
+
+	"redCollar/internal/domain"
 
 	goredis "github.com/redis/go-redis/v9"
 )
@@ -14,6 +15,7 @@ type IncidentCacheService interface {
 	GetActive(ctx context.Context) ([]domain.CachedIncident, error)
 	SetActive(ctx context.Context, incidents []domain.CachedIncident, ttl time.Duration) error
 }
+
 type IncidentCache struct {
 	client *goredis.Client
 	key    string
@@ -39,6 +41,7 @@ func (c *IncidentCache) GetActive(ctx context.Context) ([]domain.CachedIncident,
 	if err := json.Unmarshal(data, &incidents); err != nil {
 		return nil, err
 	}
+
 	return incidents, nil
 }
 

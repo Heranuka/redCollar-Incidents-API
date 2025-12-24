@@ -3,10 +3,10 @@ package config
 import (
 	"context"
 	"errors"
+	"log"
 	"log/slog"
 	"os"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -45,62 +45,66 @@ type RedisConfig struct {
 
 type WebhookConfig struct {
 	URL      string `json:"url"`
-	Disabled bool   `json:"disabled"` // ← НОВОЕ: выключатель webhook
+	Disabled bool   `json:"disabled"`
 }
 
-func Load(ctx context.Context, logger *slog.Logger) (*Config, error) {
-	// Загружаем .env (не обязательно)
+// ✅ Load БЕЗ logger параметра (совместимо с main.go)
+func Load(ctx context.Context) (*Config, error) {
+	// Создаем временный logger
+	stdLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
+
+	// Загружаем .env
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
-		logger.Warn(".env load warning", slog.Any("error", err))
+		stdLogger.Warn(".env load warning", slog.Any("error", err))
 	}
 
 	cfg := &Config{
-		Env: getEnv(logger, "ENV", "local"),
+		Env: getEnv("ENV", "local"),
 		Http: HttpConfig{
-			Port:            getEnv(logger, "HTTP_PORT", "8080"),
-			ReadTimeout:     getEnvDuration(logger, "HTTP_READ_TIMEOUT", 10*time.Second),
-			WriteTimeout:    getEnvDuration(logger, "HTTP_WRITE_TIMEOUT", 10*time.Second),
-			ShutdownTimeout: getEnvDuration(logger, "HTTP_SHUTDOWN_TIMEOUT", 10*time.Second),
+			Port:            getEnv("HTTP_PORT", ":8080"),
+			ReadTimeout:     getEnvDuration("HTTP_READ_TIMEOUT", 10*time.Second),
+			WriteTimeout:    getEnvDuration("HTTP_WRITE_TIMEOUT", 10*time.Second),
+			ShutdownTimeout: getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
 		Postgres: PostgresConfig{
-			Host:     getEnv(logger, "POSTGRES_HOST", "pg-local"),
-			Port:     getEnvInt(logger, "POSTGRES_PORT", 5432),
-			Database: getEnv(logger, "POSTGRES_DB", "redcollar_db"), // ✅ ИСПРАВЛЕНО!
-			User:     getEnv(logger, "POSTGRES_USER", "postgres"),
-			Password: getEnv(logger, "POSTGRES_PASSWORD", "postgres"),
-			SSLMode:  getEnv(logger, "POSTGRES_SSL_MODE", "disable"),
+			Host:     getEnv("POSTGRES_HOST", "pg-local"),
+			Port:     getEnvInt("POSTGRES_PORT", 5432),
+			Database: getEnv("POSTGRES_DB", "redcollar_db"),
+			User:     getEnv("POSTGRES_USER", "postgres"),
+			Password: getEnv("POSTGRES_PASSWORD", "postgres"),
+			SSLMode:  getEnv("POSTGRES_SSL_MODE", "disable"),
 		},
 		Redis: RedisConfig{
-			Addr:     getEnv(logger, "REDIS_ADDR", "redis-local:6379"), // ✅ ИСПРАВЛЕНО!
-			Password: getEnv(logger, "REDIS_PASSWORD", ""),
-			DB:       getEnvInt(logger, "REDIS_DB", 0),
+			Addr:     getEnv("REDIS_ADDR", "redis-local:6379"),
+			Password: getEnv("REDIS_PASSWORD", ""),
+			DB:       getEnvInt("REDIS_DB", 0),
 		},
-		APIKey: getEnv(logger, "API_KEY", "super-secret-key"),
+		APIKey: getEnv("API_KEY", "super-secret-key"),
 		Webhook: WebhookConfig{
-			URL:      getEnv(logger, "WEBHOOK_URL", "https://webhook.site/5fc9c082-7cf6-47c7-94b5-be7d570346d1"),
-			Disabled: getEnvBool(logger, "WEBHOOK_DISABLED", false),
+			URL:      getEnv("WEBHOOK_URL", "https://webhook.site/5fc9c082-7cf6-47c7-94b5-be7d570346d1"),
+			Disabled: getEnvBool("WEBHOOK_DISABLED", false),
 		},
 	}
 
-	// ✅ ВАЛИДАЦИЯ
-	if err := cfg.Validate(ctx, logger); err != nil {
+	// ✅ ВАЛИДАЦИЯ БЕЗ logger
+	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
 
-	logger.Info("Config loaded successfully",
+	stdLogger.Info("Config loaded successfully",
 		slog.String("env", cfg.Env),
 		slog.String("http_port", cfg.Http.Port),
 		slog.String("postgres_db", cfg.Postgres.Database),
 		slog.String("redis_addr", cfg.Redis.Addr),
-		slog.String("webhook_url", cfg.Webhook.URL),
-		slog.Bool("webhook_disabled", cfg.Webhook.Disabled))
+		slog.String("webhook_url", cfg.Webhook.URL))
 
 	return cfg, nil
 }
 
-func (c *Config) Validate(ctx context.Context, logger *slog.Logger) error {
-	if c.Http.Port == "" || !strings.HasPrefix(c.Http.Port, ":") && c.Http.Port[0] != ':' {
-		return errors.New("HTTP_PORT must be like ':8080'")
+func (c *Config) Validate() error {
+	// ✅ ИСПРАВЛЕНА логика порта
+	if c.Http.Port == "" || (len(c.Http.Port) > 0 && c.Http.Port[0] != ':') {
+		return errors.New("HTTP_PORT must start with ':' like ':8080'")
 	}
 
 	if c.Postgres.Host == "" {
@@ -108,51 +112,43 @@ func (c *Config) Validate(ctx context.Context, logger *slog.Logger) error {
 	}
 
 	if c.Webhook.Disabled {
-		logger.Warn("Webhooks DISABLED via WEBHOOK_DISABLED=true")
+		log.Println("WARN: Webhooks DISABLED via WEBHOOK_DISABLED=true")
 	}
 
 	return nil
 }
 
-// Helpers с логами
-func getEnv(logger *slog.Logger, key, def string) string {
+// ✅ Helpers БЕЗ logger
+func getEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
-		logger.Debug("env found", slog.String("key", key), slog.String("value", v))
 		return v
 	}
-	logger.Debug("env default", slog.String("key", key), slog.String("value", def))
 	return def
 }
 
-func getEnvInt(logger *slog.Logger, key string, def int) int {
+func getEnvInt(key string, def int) int {
 	if v := os.Getenv(key); v != "" {
 		if n, err := strconv.Atoi(v); err == nil {
-			logger.Debug("env int found", slog.String("key", key), slog.Int("value", n))
 			return n
 		}
 	}
-	logger.Debug("env int default", slog.String("key", key), slog.Int("value", def))
 	return def
 }
 
-func getEnvDuration(logger *slog.Logger, key string, def time.Duration) time.Duration {
+func getEnvDuration(key string, def time.Duration) time.Duration {
 	if v := os.Getenv(key); v != "" {
 		if d, err := time.ParseDuration(v); err == nil {
-			logger.Debug("env duration found", slog.String("key", key), slog.Duration("value", d))
 			return d
 		}
 	}
-	logger.Debug("env duration default", slog.String("key", key), slog.Duration("value", def))
 	return def
 }
 
-func getEnvBool(logger *slog.Logger, key string, def bool) bool {
+func getEnvBool(key string, def bool) bool {
 	if v := os.Getenv(key); v != "" {
 		if b, err := strconv.ParseBool(v); err == nil {
-			logger.Debug("env bool found", slog.String("key", key), slog.Bool("value", b))
 			return b
 		}
 	}
-	logger.Debug("env bool default", slog.String("key", key), slog.Bool("value", def))
 	return def
 }

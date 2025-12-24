@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"redCollar/internal/domain"
@@ -83,11 +84,10 @@ func toIncidents(src []*domain.Incident) []domain.Incident {
 	}
 	return out
 }
-
 func (s *AdminService) refreshCache(ctx context.Context) {
 	incidents, err := s.repo.ListActive(ctx)
 	if err != nil {
-		// залогировать и выйти
+		slog.Default().Error("refreshCache: repo.ListActive failed", slog.Any("error", err)) // или s.logger если есть
 		return
 	}
 
@@ -101,5 +101,8 @@ func (s *AdminService) refreshCache(ctx context.Context) {
 		})
 	}
 
-	_ = s.cache.SetActive(ctx, cached, 5*time.Minute)
+	if err := s.cache.SetActive(ctx, cached, 5*time.Minute); err != nil {
+		slog.Default().Error("refreshCache: cache.SetActive failed", slog.Any("error", err))
+		return
+	}
 }

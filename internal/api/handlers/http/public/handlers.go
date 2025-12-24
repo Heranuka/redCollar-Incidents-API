@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 
-	"log/slog"
 	"redCollar/internal/domain"
+
+	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 //go:generate mockgen -source=handlers.go -destination=mocks/mock.go
@@ -27,28 +29,61 @@ func NewHandler(logger *slog.Logger, publicHandler PublicHandler) *Handler {
 	}
 }
 
+func (h *Handler) log(r *http.Request) *slog.Logger {
+	reqID := chimw.GetReqID(r.Context())
+	if reqID == "" {
+		return h.logger
+	}
+	return h.logger.With(slog.String("request_id", reqID))
+}
+
+func (h *Handler) writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		h.logger.Error("json encode failed", slog.Any("error", err))
+	}
+}
+
 func (h *Handler) PublicLocationCheck(w http.ResponseWriter, r *http.Request) {
+	l := h.log(r)
+
+	l.Debug("PublicLocationCheck called",
+		slog.String("remote", r.RemoteAddr),
+		slog.String("method", r.Method),
+		slog.String("path", r.URL.Path),
+	)
+
 	var req domain.LocationCheckRequest
 
 	dec := json.NewDecoder(r.Body)
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(&req); err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		l.Warn("invalid JSON", slog.Any("error", err))
+		h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
 	}
 
-	// ВАЖНО: запрещаем "лишние данные" после первого JSON-объекта
+	// запрещаем мусор после JSON
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
+		l.Warn("extra data after JSON", slog.Any("error", err))
+		h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})
 		return
 	}
+
+	l.Info("checking location",
+		slog.Float64("lat", req.Lat),
+		slog.Float64("lng", req.Lng),
+	)
 
 	resp, err := h.PublicHandler.CheckLocation(r.Context(), req)
 	if err != nil {
-		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		l.Error("check location failed", slog.Any("error", err))
+		h.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 		return
 	}
 
-	writeJSON(w, http.StatusOK, resp)
+	l.Info("check location success")
+	h.writeJSON(w, http.StatusOK, resp)
 }

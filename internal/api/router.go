@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -38,25 +39,22 @@ func NewServer(cfg *config.Config, logger *slog.Logger, svc *service.Service) *S
 		cfg:    *cfg,
 	}
 }
-
-func InitRouter(
-	cfg *config.Config,
-	adminHandler *admin.Handler,
-	publicHandler *public.Handler,
-	systemHandler *system.Handler,
-	logger *slog.Logger,
-) *chi.Mux {
+func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *public.Handler, systemHandler *system.Handler, logger *slog.Logger) *chi.Mux {
 	r := chi.NewMux()
 
-	r.Use(chimw.Logger)
+	// чтобы request_id попал в лог chi.Logger
+	r.Use(chimw.RequestID) // [web:243]
 	r.Use(chimw.Recoverer)
-	r.Use(chimw.RequestID)
+	r.Use(chimw.Logger) // [web:243]
 
 	r.Route("/api/v1", func(api chi.Router) {
 		// ADMIN
 		api.Route("/admin", func(ar chi.Router) {
 			ar.Use(middleware.APIKeyMiddleware(cfg.APIKey))
 			ar.Use(middleware.Limit(2, 5, 10*time.Minute, logger))
+
+			// ✅ stats НЕ внутри incidents
+			ar.Get("/stats", adminHandler.AdminStats)
 
 			ar.Route("/incidents", func(ir chi.Router) {
 				ir.Post("/", adminHandler.AdminIncidentCreate)
@@ -68,8 +66,6 @@ func InitRouter(
 					rr.Delete("/", adminHandler.AdminIncidentDelete)
 				})
 			})
-
-			ar.Get("/incidents/stats", adminHandler.AdminStats)
 		})
 
 		// PUBLIC
@@ -79,39 +75,51 @@ func InitRouter(
 		})
 
 		// SYSTEM
-		api.Get("/system/health", systemHandler.SystemHealth)
+		api.Get("/health", systemHandler.SystemHealth)
 	})
 
 	return r
 }
-
 func (s *Server) Run(ctx context.Context) error {
-	errChan := make(chan error, 1)
-
-	srv := &http.Server{
-		Addr:    ":" + s.cfg.Http.Port,
-		Handler: s.router,
+	port := s.cfg.Http.Port
+	if !strings.HasPrefix(port, ":") {
+		port = ":" + port
 	}
 
-	go func() {
-		s.logger.Info("Starting listening", slog.String("port", s.cfg.Http.Port))
+	srv := &http.Server{
+		Addr:         port,
+		Handler:      s.router,
+		ReadTimeout:  s.cfg.Http.ReadTimeout,
+		WriteTimeout: s.cfg.Http.WriteTimeout,
+		IdleTimeout:  30 * time.Second,
+	}
 
-		err := srv.ListenAndServe()
-		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+	errChan := make(chan error, 1)
+
+	go func() {
+		s.logger.Info("🚀 Starting HTTP server",
+			slog.String("addr", srv.Addr),
+			slog.Duration("read_timeout", s.cfg.Http.ReadTimeout),
+			slog.Duration("write_timeout", s.cfg.Http.WriteTimeout),
+		)
+
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 			errChan <- fmt.Errorf("ListenAndServe error: %w", err)
-			return
 		}
-		errChan <- nil
 	}()
 
 	select {
 	case <-ctx.Done():
-		s.logger.Info("Shutting down the server", slog.String("reason", ctx.Err().Error()))
+		s.logger.Info("🛑 Shutting down HTTP server", slog.String("reason", ctx.Err().Error()))
 
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), s.cfg.Http.ShutdownTimeout)
 		defer cancel()
 
-		return srv.Shutdown(shutdownCtx)
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			s.logger.Error("Server shutdown failed", slog.Any("error", err))
+			return err
+		}
+		return nil
 
 	case err := <-errChan:
 		return err

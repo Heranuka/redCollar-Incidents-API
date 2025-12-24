@@ -3,25 +3,31 @@ package admin
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"redCollar/pkg/e"
 	"strconv"
 )
 
-// В Handler добавь методы:
-func (h *Handler) handleError(w http.ResponseWriter, err error) {
-	var status int
+func (h *Handler) handleError(w http.ResponseWriter, r *http.Request, err error) {
+	l := h.log(r)
+
+	l.Error("handler error",
+		slog.String("method", r.Method),
+		slog.String("path", r.URL.Path),
+		slog.Any("error", err),
+	)
+
 	switch {
 	case errors.Is(err, e.ErrNotFound):
-		status = http.StatusNotFound
+		h.writeJSON(w, http.StatusNotFound, map[string]string{"error": "not found"})
 	case errors.Is(err, e.ErrInvalidInput):
-		status = http.StatusBadRequest
+		h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid input"})
 	case errors.Is(err, e.ErrConflict):
-		status = http.StatusConflict
+		h.writeJSON(w, http.StatusConflict, map[string]string{"error": "conflict"})
 	default:
-		status = http.StatusInternalServerError
+		h.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "internal error"})
 	}
-	h.writeJSON(w, status, map[string]string{"error": err.Error()})
 }
 
 func (h *Handler) writeJSON(w http.ResponseWriter, code int, v interface{}) {

@@ -54,9 +54,9 @@ func NewPostgres(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 
 	pg := &Postgres{
 		Pool:          pool,
-		IncidentAdmin: NewIncidentAdmin(pool),
-		Geo:           NewIncidentPublic(pool),
-		Stat:          NewStats(pool),
+		IncidentAdmin: NewIncidentAdmin(pool, logger),
+		Geo:           NewIncidentPublic(pool, logger),
+		Stat:          NewStats(pool, logger),
 	}
 
 	logger.Info("Postgres repositories created")

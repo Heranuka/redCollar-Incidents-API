@@ -19,14 +19,14 @@ func NewStatsService(repo StatsRepository) StatsService {
 
 func (s *statsService) GetStats(ctx context.Context, req domain.StatsRequest) (*domain.IncidentStats, error) {
 	minutes := req.Minutes
-	if minutes <= 0 {
+	if minutes == 0 {
 		minutes = 60
 	}
 
-	count, err := s.repo.CountUniqueUsers(ctx, minutes)
+	cnt, err := s.repo.CountUniqueUsers(ctx, minutes)
 	if err != nil {
 		return nil, err
 	}
 
-	return &domain.IncidentStats{UserCount: count}, nil
+	return &domain.IncidentStats{UserCount: cnt}, nil
 }

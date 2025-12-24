@@ -32,34 +32,30 @@ func NewWebhookSender(logger *slog.Logger, cfg config.WebhookConfig, q *redis.We
 	}
 }
 func (s *WebhookSender) Run(ctx context.Context) {
-	s.logger.Info("🔥 webhookSender STARTED", slog.String("url", s.cfg.URL)) // ← ДОБАВЬ
+	s.logger.Info("webhookSender STARTED", slog.String("url", s.cfg.URL)) // [file:469]
 
 	for {
 		select {
 		case <-ctx.Done():
-			s.logger.Info("🛑 webhookSender STOPPED", slog.String("reason", ctx.Err().Error()))
+			s.logger.Info("webhookSender STOPPED", slog.String("reason", ctx.Err().Error()))
 			return
 		default:
 		}
 
-		s.logger.Debug("📥 checking webhook queue...") // ← ДОБАВЬ
-
 		payload, err := s.queue.BRPop(ctx, 5*time.Second)
 		if err != nil {
 			if errors.Is(err, e.ErrWebHookEmpty) {
-				s.logger.Debug("⭕ webhook queue empty") // ← ДОБАВЬ
 				continue
 			}
-			s.logger.Error("💥 BRPop failed", slog.String("error", err.Error())) // ← ДОБАВЬ
-			time.Sleep(time.Second)
+			s.logger.Error("BRPop failed", slog.Any("error", err))
+			time.Sleep(500 * time.Millisecond)
 			continue
 		}
 
-		s.logger.Info("📤 sending webhook", slog.String("user_id", payload.UserID)) // ← ДОБАВЬ
+		s.logger.Info("sending webhook", slog.String("user_id", payload.UserID))
 		s.sendWithRetry(ctx, payload)
 	}
 }
-
 func (s *WebhookSender) sendWithRetry(ctx context.Context, p domain.WebhookPayload) {
 	const maxRetries = 3
 
