@@ -4,8 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"log/slog"
 	"net/http"
+	"os"
+	"redCollar/internal/render"
 	"strings"
 	"time"
 
@@ -30,8 +33,17 @@ func NewServer(cfg *config.Config, logger *slog.Logger, svc *service.Service) *S
 	adminHandler := admin.NewHandler(logger, svc.AdminIncidentService, svc.StatsService, svc.PublicIncidentService)
 	publicHandler := public.NewHandler(logger, svc.PublicIncidentService)
 	systemHandler := system.NewHandler(logger)
+	wd, _ := os.Getwd()
+	logger.Info("cwd", slog.String("wd", wd))
+	entries, err := os.ReadDir("templates")
+	logger.Info("templates dir", slog.Any("err", err), slog.Int("count", len(entries)))
 
-	r := InitRouter(cfg, adminHandler, publicHandler, systemHandler, logger)
+	renderer, err := render.NewRenderer("templates/*.html")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	r := InitRouter(cfg, adminHandler, publicHandler, systemHandler, renderer, logger)
 
 	return &Server{
 		logger: logger,
@@ -39,7 +51,7 @@ func NewServer(cfg *config.Config, logger *slog.Logger, svc *service.Service) *S
 		cfg:    *cfg,
 	}
 }
-func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *public.Handler, systemHandler *system.Handler, logger *slog.Logger) *chi.Mux {
+func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *public.Handler, systemHandler *system.Handler, renderer *render.Renderer, logger *slog.Logger) *chi.Mux {
 	r := chi.NewMux()
 
 	// чтобы request_id попал в лог chi.Logger
@@ -47,6 +59,17 @@ func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *
 	r.Use(chimw.Recoverer)
 	r.Use(chimw.Logger) // [web:243]
 
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		renderer.Render(w, "index.html", nil)
+	})
+
+	r.Get("/public", func(w http.ResponseWriter, r *http.Request) {
+		renderer.Render(w, "public.html", nil)
+	})
+
+	r.Get("/admin", func(w http.ResponseWriter, r *http.Request) {
+		renderer.Render(w, "admin.html", nil)
+	})
 	r.Route("/api/v1", func(api chi.Router) {
 		// ADMIN
 		api.Route("/admin", func(ar chi.Router) {

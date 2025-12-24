@@ -19,6 +19,7 @@ type IncidentRepository interface {
 type StatsRepository interface {
 	SaveCheck(ctx context.Context, check *domain.LocationCheck) error
 	CountUniqueUsers(ctx context.Context, minutes int) (int64, error)
+	CountTotalChecks(ctx context.Context, minutes int) (int64, error)
 }
 
 type GeoRepository interface {

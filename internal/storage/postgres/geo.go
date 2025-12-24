@@ -37,8 +37,8 @@ SELECT id
 FROM incidents
 WHERE status = 'active'
   AND ST_DWithin(
-    geo_point::geography,
-    ST_SetSRID(ST_MakePoint($1, $2), 4326)::geography,
+    geo_point,
+    ST_MakePoint($1, $2)::geography,
     $3 * 1000
   )
 `

@@ -56,7 +56,8 @@ func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger
 
 	cache := redis2.NewIncidentCache(redisClient)
 	adminSvc := service.NewAdminIncidentService(storage.AdminIncidents(), cache)
-	publicSvc := service.NewPublicIncidentService(cache, webhookQueue, logger, 1.0)
+	statsRepo := storage.Stats() // *postgres.StatsRepo
+	publicSvc := service.NewPublicIncidentService(cache, statsRepo, webhookQueue, logger, 1.0)
 	statsSvc := service.NewStatsService(storage.Stats())
 	locationChecker := workers.NewLocationChecker(cache, 10)
 

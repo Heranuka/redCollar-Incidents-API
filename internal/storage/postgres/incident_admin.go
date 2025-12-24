@@ -38,6 +38,7 @@ func (p *IncidentAdmin) Create(ctx context.Context, incident *domain.Incident) e
 		incident.CreatedAt = time.Now().UTC()
 	}
 	if incident.Status == "" {
+		fmt.Println("WARNING: Incident Status is empty-----------")
 		incident.Status = domain.IncidentActive
 	}
 
@@ -71,7 +72,7 @@ func (p *IncidentAdmin) List(ctx context.Context, page, limit int) ([]*domain.In
 	}
 	offset := (page - 1) * limit
 
-	const countQuery = `SELECT COUNT(*) FROM incidents WHERE status = 'active'`
+	const countQuery = `SELECT COUNT(*) FROM incidents`
 
 	var total int64
 	if err := p.pool.QueryRow(ctx, countQuery).Scan(&total); err != nil {
@@ -87,7 +88,6 @@ func (p *IncidentAdmin) List(ctx context.Context, page, limit int) ([]*domain.In
 			   status,
 			   created_at
 		FROM incidents
-		WHERE status = 'active'
 		ORDER BY created_at DESC
 		LIMIT $1 OFFSET $2
 	`

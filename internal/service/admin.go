@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 
@@ -20,12 +21,17 @@ func NewAdminIncidentService(repo IncidentRepository, cache IncidentCacheService
 }
 
 func (s *AdminService) Create(ctx context.Context, req domain.CreateIncidentRequest) (uuid.UUID, error) {
+	status := req.Status
+	if status == "" {
+		fmt.Println("----------------------------------")
+		status = domain.IncidentActive
+	}
 	inc := &domain.Incident{
 		ID:       uuid.New(),
 		Lat:      req.Lat,
 		Lng:      req.Lng,
 		RadiusKM: req.RadiusKM,
-		Status:   domain.IncidentActive,
+		Status:   status,
 	}
 	if err := s.repo.Create(ctx, inc); err != nil {
 		return uuid.Nil, err

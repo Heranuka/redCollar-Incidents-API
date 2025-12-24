@@ -24,14 +24,14 @@ func NewStats(pool *pgxpool.Pool, logger *slog.Logger) *StatsRepo {
 func (p *StatsRepo) SaveCheck(ctx context.Context, check *domain.LocationCheck) error {
 	const op = "postgres.LocationCheck.Save"
 
-	if check == nil || check.UserID.String() == "" {
+	if check == nil || check.UserID == uuid.Nil {
 		return fmt.Errorf("%s: %w", op, e.ErrInvalidInput)
 	}
 
 	const query = `
-		INSERT INTO location_checks (id, user_id, lat, lng, incident_ids, checked_at)
-		VALUES ($1, $2, $3, $4, $5, $6)
-	`
+INSERT INTO location_checks (id, userid, lat, lng, incidentids, checkedat)
+VALUES ($1, $2, $3, $4, $5, $6)
+`
 
 	if check.ID == uuid.Nil {
 		check.ID = uuid.New()
@@ -65,13 +65,39 @@ func (p *StatsRepo) CountUniqueUsers(ctx context.Context, minutes int) (int64, e
 
 	// ✅ безопасная параметризация интервала: число * interval '1 minute' [web:433]
 	const query = `
-		SELECT COUNT(DISTINCT user_id)
-		FROM location_checks
-		WHERE checked_at >= NOW() - ($1 * INTERVAL '1 minute')
+		SELECT COUNT(DISTINCT userid)
+FROM location_checks
+WHERE checkedat >= NOW() - make_interval(mins => $1)
 	`
 
 	var cnt int64
-	if err := p.pool.QueryRow(ctx, query, minutes).Scan(&cnt); err != nil { // ошибка придёт на Scan [web:430]
+	if err := p.pool.QueryRow(ctx, query, minutes).Scan(&cnt); err != nil {
+		p.logger.Error("db queryrow scan failed",
+			slog.String("op", op),
+			slog.Any("error", err),
+			slog.Int("minutes", minutes),
+		)
+		return 0, fmt.Errorf("%s: %w", op, err) // ✅ ВАЖНО: без e.WrapError
+	}
+
+	return cnt, nil
+}
+
+func (p *StatsRepo) CountTotalChecks(ctx context.Context, minutes int) (int64, error) {
+	const op = "postgres.LocationCheck.CountTotalChecks"
+
+	if minutes <= 0 || minutes > 1440 {
+		return 0, fmt.Errorf("%s: %w", op, e.ErrInvalidInput)
+	}
+
+	const query = `
+SELECT COUNT(*)
+FROM location_checks
+WHERE checkedat >= NOW() - make_interval(mins => $1)
+
+`
+	var cnt int64
+	if err := p.pool.QueryRow(ctx, query, minutes).Scan(&cnt); err != nil {
 		p.logger.Error("db queryrow scan failed",
 			slog.String("op", op),
 			slog.Any("error", err),
@@ -79,6 +105,5 @@ func (p *StatsRepo) CountUniqueUsers(ctx context.Context, minutes int) (int64, e
 		)
 		return 0, e.WrapError(ctx, op, err)
 	}
-
 	return cnt, nil
 }

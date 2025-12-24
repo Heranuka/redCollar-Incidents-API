@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedCollar - Location Check</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --success: #27ae60;
+            --success-dark: #229954;
+            --danger: #e74c3c;
+            --danger-dark: #c0392b;
+            --warning: #f39c12;
+            --text: #2c3e50;
+            --text-light: #7f8c8d;
+            --bg: #f8f9fa;
+            --white: #ffffff;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: linear-gradient(135deg, rgba(44, 62, 80, 0.95) 0%, rgba(52, 152, 219, 0.95) 100%);
+            backdrop-filter: blur(10px);
+            color: white;
+            padding: 30px 20px;
+            box-shadow: var(--shadow-lg);
+            border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .header-content {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        .header h1 {
+            font-size: 32px;
+            margin-bottom: 10px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .header h1 i {
+            font-size: 36px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .header p {
+            font-size: 15px;
+            opacity: 0.9;
+            margin-top: 8px;
+        }
+
+        .container {
+            flex: 1;
+            max-width: 900px;
+            margin: 40px auto;
+            padding: 0 20px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 900px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .panel {
+            background: linear-gradient(135deg, var(--white) 0%, rgba(255, 255, 255, 0.95) 100%);
+            border-radius: 12px;
+            box-shadow: var(--shadow);
+            overflow: hidden;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+            transition: all 0.3s ease;
+        }
+
+        .panel:hover {
+            box-shadow: var(--shadow-lg);
+        }
+
+        .panel-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #ecf0f1 100%);
+            padding: 20px 25px;
+            border-bottom: 2px solid rgba(52, 152, 219, 0.1);
+            font-weight: 700;
+            font-size: 16px;
+            color: var(--text);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .panel-header i {
+            font-size: 20px;
+            color: var(--primary);
+        }
+
+        .panel-body {
+            padding: 25px;
+        }
+
+        #map {
+            width: 100%;
+            height: 450px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        .form-group input:disabled {
+            background: #f5f5f5;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .form-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 25px;
+        }
+
+        .form-buttons button {
+            flex: 1;
+            padding: 14px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .form-buttons .btn-primary {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+        }
+
+        .form-buttons .btn-primary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .form-buttons .btn-primary:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .form-buttons .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6 0%, #7f8c8d 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .form-buttons .btn-secondary:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+
+        .result-section {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            display: none;
+            animation: slideDown 0.3s ease;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-success {
+            background: linear-gradient(135deg, rgba(39, 174, 96, 0.1) 0%, rgba(46, 204, 113, 0.1) 100%);
+            border: 2px solid var(--success);
+            color: var(--success);
+        }
+
+        .result-danger {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.1) 0%, rgba(192, 57, 43, 0.1) 100%);
+            border: 2px solid var(--danger);
+            color: var(--danger);
+        }
+
+        .result-header {
+            font-size: 18px;
+            font-weight: 700;
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .result-header i {
+            font-size: 24px;
+        }
+
+        .incident-list {
+            list-style: none;
+        }
+
+        .incident-item {
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 6px;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 500;
+        }
+
+        .incident-item i {
+            font-size: 16px;
+        }
+
+        .location-info {
+            background: rgba(0, 0, 0, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+
+        .location-info strong {
+            color: var(--text);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+            z-index: 2000;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideInRight 0.3s ease;
+            max-width: 400px;
+            border-left: 4px solid;
+        }
+
+        @keyframes slideInRight {
+            from {
+                opacity: 0;
+                transform: translateX(100px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        .toast-success {
+            background: linear-gradient(135deg, rgba(39, 174, 96, 0.95) 0%, rgba(46, 204, 113, 0.95) 100%);
+            color: white;
+            border-color: white;
+        }
+
+        .toast-error {
+            background: linear-gradient(135deg, rgba(231, 76, 60, 0.95) 0%, rgba(192, 57, 43, 0.95) 100%);
+            color: white;
+            border-color: white;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 14px;
+            height: 14px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .info-box {
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1) 0%, rgba(41, 128, 185, 0.1) 100%);
+            border-left: 4px solid var(--primary);
+            padding: 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .info-box i {
+            color: var(--primary);
+            margin-right: 10px;
+        }
+
+        .footer {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-align: center;
+            padding: 20px;
+            margin-top: auto;
+            font-size: 13px;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 24px;
+            }
+
+            .main-grid {
+                gap: 15px;
+            }
+
+            #map {
+                height: 350px;
+            }
+
+            .form-buttons {
+                flex-direction: column;
+            }
+
+            .toast {
+                right: 10px;
+                left: 10px;
+                max-width: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="header-content">
+            <h1><i class="fas fa-map-pin"></i> RedCollar Location Check</h1>
+            <p>Check if your current location is in an incident zone</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="main-grid">
+            <!-- Map -->
+            <div class="panel">
+                <div class="panel-header"><i class="fas fa-map-marked-alt"></i> Live Map</div>
+                <div class="panel-body">
+                    <div id="map"></div>
+                </div>
+            </div>
+
+            <!-- Check Form -->
+            <div class="panel">
+                <div class="panel-header"><i class="fas fa-search-location"></i> Check Location</div>
+                <div class="panel-body">
+                    <div class="info-box">
+                        <i class="fas fa-info-circle"></i>
+                        <span>Your location is used only for this check and not stored.</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="userId"><i class="fas fa-user"></i> User ID</label>
+                        <input type="text" id="userId" placeholder="Enter your user ID (or auto-generate)" value="">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="latitude"><i class="fas fa-arrow-up"></i> Latitude</label>
+                        <input type="number" id="latitude" placeholder="55.75" step="0.0001" min="-90" max="90" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="longitude"><i class="fas fa-arrow-right"></i> Longitude</label>
+                        <input type="number" id="longitude" placeholder="37.61" step="0.0001" min="-180" max="180" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="accuracy"><i class="fas fa-crosshairs"></i> Accuracy (m)</label>
+                        <input type="number" id="accuracy" placeholder="0" step="0.1" readonly>
+                    </div>
+
+                    <div class="form-buttons">
+                        <button class="btn-primary" onclick="getLocation()"><i class="fas fa-location-arrow"></i> Get My Location</button>
+                        <button class="btn-secondary" onclick="checkLocation()"><i class="fas fa-check"></i> Check</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Result Section -->
+        <div class="panel">
+            <div class="panel-body">
+                <div id="resultSection" class="result-section">
+                    <div class="result-header" id="resultHeader"></div>
+                    <div id="resultContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <i class="fas fa-shield-alt"></i> RedCollar - Secure Location Verification System
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+    <script>
+        const API_BASE = '/api/v1';
+        let map, userMarker, currentLat, currentLng, currentAccuracy;
+
+        function initMap() {
+            map = L.map('map').setView([55.75, 37.61], 10);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function generateUserId() {
+            return 'user_' + Math.random().toString(36).substr(2, 9);
+        }
+
+        function getLocation() {
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading"></div> Getting location...';
+
+            if (!navigator.geolocation) {
+                showToast('❌ Geolocation not supported', 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-location-arrow"></i> Get My Location';
+                return;
+            }
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    currentLat = position.coords.latitude;
+                    currentLng = position.coords.longitude;
+                    currentAccuracy = position.coords.accuracy;
+
+                    document.getElementById('latitude').value = currentLat.toFixed(6);
+                    document.getElementById('longitude').value = currentLng.toFixed(6);
+                    document.getElementById('accuracy').value = currentAccuracy.toFixed(1);
+
+                    // Update map
+                    if (userMarker) map.removeLayer(userMarker);
+                    userMarker = L.circleMarker([currentLat, currentLng], {
+                        radius: 8,
+                        fillColor: '#3498db',
+                        color: 'white',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.8
+                    }).addTo(map).bindPopup('Your location');
+
+                    // Accuracy circle
+                    L.circle([currentLat, currentLng], {
+                        radius: currentAccuracy,
+                        color: 'rgba(52, 152, 219, 0.3)',
+                        fillOpacity: 0.1,
+                        weight: 1
+                    }).addTo(map);
+
+                    map.setView([currentLat, currentLng], 13);
+                    showToast('✅ Location acquired!', 'success');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-location-arrow"></i> Get My Location';
+                },
+                (error) => {
+                    showToast('❌ ' + error.message, 'error');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-location-arrow"></i> Get My Location';
+                }
+            );
+        }
+
+        function showToast(message, type) {
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i> ${message}`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideInRight 0.3s ease reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        async function checkLocation() {
+            const lat = parseFloat(document.getElementById('latitude').value);
+            const lng = parseFloat(document.getElementById('longitude').value);
+            let userId = document.getElementById('userId').value;
+
+            if (!lat || !lng) {
+                showToast('❌ Please get your location first', 'error');
+                return;
+            }
+
+            if (!userId) {
+                userId = generateUserId();
+                document.getElementById('userId').value = userId;
+            }
+
+            const btn = event.target;
+            btn.disabled = true;
+            btn.innerHTML = '<div class="loading"></div> Checking...';
+
+            try {
+                const res = await fetch(`${API_BASE}/location/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        lat: lat,
+                        lng: lng
+                    })
+                });
+
+                if (!res.ok) throw new Error('Check failed');
+                const data = await res.json();
+
+                displayResult(data, lat, lng);
+                showToast('✅ Check completed!', 'success');
+            } catch (err) {
+                showToast('❌ ' + err.message, 'error');
+                hideResult();
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fas fa-check"></i> Check';
+            }
+        }
+
+        function displayResult(data, lat, lng) {
+            const hasIncidents = data.incident_ids && data.incident_ids.length > 0;
+            const resultSection = document.getElementById('resultSection');
+            const resultHeader = document.getElementById('resultHeader');
+            const resultContent = document.getElementById('resultContent');
+
+            if (hasIncidents) {
+                resultSection.className = 'result-section show result-danger';
+                resultHeader.innerHTML = `<i class="fas fa-exclamation-triangle"></i> ⚠️ WARNING - In Incident Zone`;
+                resultContent.innerHTML = `
+                    <p style="margin-bottom: 15px; font-weight: 500;">You are currently in ${data.incident_ids.length} incident zone(s):</p>
+                    <ul class="incident-list">
+                        ${data.incident_ids.map(id => `
+                            <li class="incident-item">
+                                <i class="fas fa-circle"></i>
+                                <span>Incident ID: <code>${id}</code></span>
+                            </li>
+                        `).join('')}
+                    </ul>
+                    <div class="location-info">
+                        <strong><i class="fas fa-map-pin"></i> Location Details:</strong><br>
+                        Latitude: ${lat.toFixed(6)}<br>
+                        Longitude: ${lng.toFixed(6)}<br>
+                        Timestamp: ${new Date().toLocaleString()}
+                    </div>
+                `;
+            } else {
+                resultSection.className = 'result-section show result-success';
+                resultHeader.innerHTML = `<i class="fas fa-check-circle"></i> ✅ All Clear`;
+                resultContent.innerHTML = `
+                    <p style="margin-bottom: 15px; font-weight: 500;">Your location is safe. No incident zones detected.</p>
+                    <div class="location-info">
+                        <strong><i class="fas fa-map-pin"></i> Location Details:</strong><br>
+                        Latitude: ${lat.toFixed(6)}<br>
+                        Longitude: ${lng.toFixed(6)}<br>
+                        Timestamp: ${new Date().toLocaleString()}
+                    </div>
+                `;
+            }
+        }
+
+        function hideResult() {
+            document.getElementById('resultSection').classList.remove('show');
+        }
+
+        window.addEventListener('load', () => {
+            initMap();
+        });
+    </script>
+</body>
+</html>

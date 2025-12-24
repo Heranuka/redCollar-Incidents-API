@@ -70,6 +70,7 @@ func (h *Handler) AdminIncidentCreate(w http.ResponseWriter, r *http.Request) {
 		slog.Float64("lat", req.Lat),
 		slog.Float64("lng", req.Lng),
 		slog.Float64("radius_km", req.RadiusKM),
+		slog.String("status", string(req.Status)),
 	)
 
 	id, err := h.Admin.Create(r.Context(), req)
@@ -194,7 +195,8 @@ func (h *Handler) AdminStats(w http.ResponseWriter, r *http.Request) {
 
 	stats, err := h.Stats.GetStats(r.Context(), domain.StatsRequest{Minutes: minutes})
 	if err != nil {
-		h.handleError(w, r, err)
+		l.Error("Stats.GetStats failed", slog.Any("error", err))
+		h.writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
 		return
 	}
 

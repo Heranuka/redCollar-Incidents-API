@@ -1,9 +1,10 @@
 package domain
 
 type CreateIncidentRequest struct {
-	Lat      float64 `json:"lat" validate:"required,lat"`
-	Lng      float64 `json:"lng" validate:"required,lng"`
-	RadiusKM float64 `json:"radius_km" validate:"required,min=0.1,max=100"`
+	Lat      float64        `json:"lat" validate:"required,lat"`
+	Lng      float64        `json:"lng" validate:"required,lng"`
+	RadiusKM float64        `json:"radius_km" validate:"required,min=0.1,max=100"`
+	Status   IncidentStatus `json:"status" validate:"omitempty,oneof=active inactive"`
 }
 
 type UpdateIncidentRequest struct {

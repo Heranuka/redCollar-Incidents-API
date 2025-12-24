@@ -22,7 +22,7 @@ WORKDIR /app
 RUN apk --no-cache add ca-certificates
 
 COPY --from=builder /app/app .
-
+COPY --from=builder /app/templates ./templates
 # Скопируй конфиг если нужен
 # COPY config/config.yaml ./config.yaml
 

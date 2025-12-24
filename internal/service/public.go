@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"time"
 
@@ -13,8 +14,13 @@ import (
 	"github.com/google/uuid"
 )
 
-type IncidentGeoRepository interface {
-	FindNearby(ctx context.Context, lat, lng, radiusKm float64) ([]uuid.UUID, error)
+/*
+	type IncidentGeoRepository interface {
+		FindNearby(ctx context.Context, lat, lng, radiusKm float64) ([]uuid.UUID, error)
+		SaveCheck(ctx context.Context, check *domain.LocationCheck) error
+	}
+*/
+type CheckSaver interface {
 	SaveCheck(ctx context.Context, check *domain.LocationCheck) error
 }
 
@@ -24,6 +30,7 @@ type WebhookQueue interface {
 
 type publicIncidentService struct {
 	cache           IncidentCacheService
+	checkSaver      CheckSaver
 	webhookQueue    WebhookQueue
 	logger          *slog.Logger
 	defaultRadiusKm float64
@@ -31,6 +38,7 @@ type publicIncidentService struct {
 
 func NewPublicIncidentService(
 	cache IncidentCacheService,
+	checkSaver CheckSaver,
 	q WebhookQueue,
 	logger *slog.Logger,
 	defaultRadiusKm float64,
@@ -40,11 +48,13 @@ func NewPublicIncidentService(
 	}
 	return &publicIncidentService{
 		cache:           cache,
+		checkSaver:      checkSaver,
 		webhookQueue:    q,
 		logger:          logger,
 		defaultRadiusKm: defaultRadiusKm,
 	}
 }
+
 func (s *publicIncidentService) CheckLocation(ctx context.Context, req domain.LocationCheckRequest) (domain.LocationCheckResponse, error) {
 	s.logger.Info("location check START",
 		slog.String("user_id", req.UserID),
@@ -80,14 +90,39 @@ func (s *publicIncidentService) CheckLocation(ctx context.Context, req domain.Lo
 		ids = append(ids, inc.ID)
 	}
 
+	checkedAt := time.Now().UTC()
+
+	userUUID, err := uuid.Parse(req.UserID)
+	if err != nil {
+		s.logger.Warn("invalid userid", slog.String("user_id", req.UserID), slog.Any("error", err))
+		return domain.LocationCheckResponse{}, e.ErrInvalidUserID
+	}
+
+	check := &domain.LocationCheck{
+		UserID:      userUUID,
+		Lat:         req.Lat,
+		Lng:         req.Lng,
+		IncidentIDs: ids,
+		CheckedAt:   checkedAt,
+	}
+	s.logger.Info("about to save check",
+		slog.String("checkSaver_type", fmt.Sprintf("%T", s.checkSaver)),
+	)
+
+	if err := s.checkSaver.SaveCheck(ctx, check); err != nil {
+		s.logger.Error("save check failed", slog.Any("error", err))
+	}
+	s.logger.Info("check saved (attempted)")
+
 	if len(ids) > 0 {
 		payload := domain.WebhookPayload{
 			UserID:    req.UserID,
 			Lat:       req.Lat,
 			Lng:       req.Lng,
 			Incidents: ids,
-			CheckedAt: time.Now().UTC(),
+			CheckedAt: checkedAt,
 		}
+
 		if err := s.webhookQueue.Enqueue(ctx, payload); err != nil {
 			s.logger.Error("enqueue webhook failed", slog.Any("error", err))
 		} else {

@@ -8,8 +8,6 @@ import (
 	"net/http"
 
 	"redCollar/internal/domain"
-
-	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 //go:generate mockgen -source=handlers.go -destination=mocks/mock.go
@@ -26,22 +24,6 @@ func NewHandler(logger *slog.Logger, publicHandler PublicHandler) *Handler {
 	return &Handler{
 		logger:        logger,
 		PublicHandler: publicHandler,
-	}
-}
-
-func (h *Handler) log(r *http.Request) *slog.Logger {
-	reqID := chimw.GetReqID(r.Context())
-	if reqID == "" {
-		return h.logger
-	}
-	return h.logger.With(slog.String("request_id", reqID))
-}
-
-func (h *Handler) writeJSON(w http.ResponseWriter, code int, v any) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		h.logger.Error("json encode failed", slog.Any("error", err))
 	}
 }
 

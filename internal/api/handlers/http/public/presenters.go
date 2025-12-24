@@ -3,9 +3,12 @@ package public
 import (
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"net/http"
 	"redCollar/pkg/e"
 	"strconv"
+
+	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
 // В Handler добавь методы:
@@ -21,13 +24,7 @@ func (h *Handler) handleError(w http.ResponseWriter, err error) {
 	default:
 		status = http.StatusInternalServerError
 	}
-	writeJSON(w, status, map[string]string{"error": err.Error()})
-}
-
-func writeJSON(w http.ResponseWriter, code int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json; charset=utf-8")
-	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+	h.writeJSON(w, status, map[string]string{"error": err.Error()})
 }
 
 func parseInt(s string, def int) int {
@@ -39,4 +36,20 @@ func parseInt(s string, def int) int {
 		return def
 	}
 	return i
+}
+
+func (h *Handler) log(r *http.Request) *slog.Logger {
+	reqID := chimw.GetReqID(r.Context())
+	if reqID == "" {
+		return h.logger
+	}
+	return h.logger.With(slog.String("request_id", reqID))
+}
+
+func (h *Handler) writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(code)
+	if err := json.NewEncoder(w).Encode(v); err != nil {
+		h.logger.Error("json encode failed", slog.Any("error", err))
+	}
 }

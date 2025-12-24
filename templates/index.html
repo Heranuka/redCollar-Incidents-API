@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RedCollar - Select Mode</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #3498db;
+            --primary-dark: #2980b9;
+            --success: #27ae60;
+            --success-dark: #229954;
+            --danger: #e74c3c;
+            --danger-dark: #c0392b;
+            --text: #2c3e50;
+            --text-light: #7f8c8d;
+            --white: #ffffff;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.15);
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background-attachment: fixed;
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            text-align: center;
+        }
+
+        .header {
+            margin-bottom: 60px;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header h1 {
+            font-size: 48px;
+            color: white;
+            margin-bottom: 15px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .header h1 i {
+            font-size: 52px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.7; transform: scale(1.05); }
+        }
+
+        .header p {
+            font-size: 18px;
+            color: rgba(255, 255, 255, 0.9);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.7);
+            margin-top: 5px;
+        }
+
+        .modes-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            margin-bottom: 60px;
+        }
+
+        @media (max-width: 900px) {
+            .modes-grid {
+                grid-template-columns: 1fr;
+                gap: 30px;
+            }
+        }
+
+        .mode-card {
+            background: linear-gradient(135deg, var(--white) 0%, rgba(255, 255, 255, 0.95) 100%);
+            border-radius: 16px;
+            padding: 50px 40px;
+            box-shadow: var(--shadow-lg);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            border: 2px solid transparent;
+            position: relative;
+            overflow: hidden;
+            animation: fadeInUp 0.6s ease;
+            animation-fill-mode: both;
+        }
+
+        .mode-card:nth-child(1) {
+            animation-delay: 0.1s;
+        }
+
+        .mode-card:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .mode-card:hover {
+            transform: translateY(-10px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
+
+        .mode-card.admin:hover {
+            border-color: var(--success);
+        }
+
+        .mode-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-dark));
+        }
+
+        .mode-card.admin::before {
+            background: linear-gradient(90deg, var(--success), var(--success-dark));
+        }
+
+        .mode-icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+            display: block;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        .mode-card:nth-child(1) .mode-icon {
+            color: var(--primary);
+        }
+
+        .mode-card:nth-child(2) .mode-icon {
+            color: var(--success);
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .mode-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--text);
+            margin-bottom: 15px;
+        }
+
+        .mode-description {
+            font-size: 15px;
+            color: var(--text-light);
+            line-height: 1.8;
+            margin-bottom: 30px;
+        }
+
+        .mode-features {
+            text-align: left;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(52, 152, 219, 0.05);
+            border-radius: 10px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .mode-card.admin .mode-features {
+            background: rgba(39, 174, 96, 0.05);
+            border-left-color: var(--success);
+        }
+
+        .mode-feature {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+            font-size: 14px;
+            color: var(--text);
+        }
+
+        .mode-feature:last-child {
+            margin-bottom: 0;
+        }
+
+        .mode-feature i {
+            color: var(--primary);
+            font-size: 16px;
+            min-width: 20px;
+        }
+
+        .mode-card.admin .mode-feature i {
+            color: var(--success);
+        }
+
+        .mode-button {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border: none;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
+            width: 100%;
+            justify-content: center;
+        }
+
+        .mode-card.admin .mode-button {
+            background: linear-gradient(135deg, var(--success) 0%, var(--success-dark) 100%);
+            box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+        }
+
+        .mode-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+        }
+
+        .mode-card.admin .mode-button:hover {
+            box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+        }
+
+        .mode-button:active {
+            transform: translateY(0);
+        }
+
+        .footer {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            text-align: center;
+            padding: 30px 20px;
+            border-radius: 12px;
+            margin-top: auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .footer p {
+            margin: 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .footer i {
+            margin-right: 8px;
+            color: #ffd700;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 32px;
+            }
+
+            .header p {
+                font-size: 16px;
+            }
+
+            .mode-card {
+                padding: 30px 25px;
+            }
+
+            .mode-icon {
+                font-size: 48px;
+            }
+
+            .mode-title {
+                font-size: 22px;
+            }
+
+            .mode-description {
+                font-size: 14px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-shield-alt"></i> RedCollar</h1>
+            <p>Select Your Mode</p>
+            <p class="subtitle">Choose between User Check or Admin Dashboard</p>
+        </div>
+
+        <div class="modes-grid">
+            <!-- User Mode -->
+            <div class="mode-card user">
+                <i class="fas fa-map-pin mode-icon"></i>
+                <h2 class="mode-title">👤 User Mode</h2>
+                <p class="mode-description">Check if your current location is in an incident zone</p>
+                
+                <div class="mode-features">
+                    <div class="mode-feature">
+                        <i class="fas fa-map-marked-alt"></i>
+                        <span>Real-time location mapping</span>
+                    </div>
+                    <div class="mode-feature">
+                        <i class="fas fa-location-arrow"></i>
+                        <span>Geolocation tracking</span>
+                    </div>
+                    <div class="mode-feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Instant safety verification</span>
+                    </div>
+                    <div class="mode-feature">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>No data storage</span>
+                    </div>
+                </div>
+
+                <button class="mode-button" onclick="openPublic()">
+                    <i class="fas fa-arrow-right"></i> Check Location
+                </button>
+            </div>
+
+            <!-- Admin Mode -->
+            <div class="mode-card admin">
+                <i class="fas fa-chart-bar mode-icon"></i>
+                <h2 class="mode-title">⚙️ Admin Mode</h2>
+                <p class="mode-description">Manage incidents and view real-time statistics</p>
+                
+                <div class="mode-features">
+                    <div class="mode-feature">
+                        <i class="fas fa-plus-circle"></i>
+                        <span>Create & manage incidents</span>
+                    </div>
+                    <div class="mode-feature">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Real-time statistics</span>
+                    </div>
+                    <div class="mode-feature">
+                        <i class="fas fa-edit"></i>
+                        <span>Edit & delete zones</span>
+                    </div>
+                    <div class="mode-feature">
+                        <i class="fas fa-lock"></i>
+                        <span>API key authentication</span>
+                    </div>
+                </div>
+
+                <button class="mode-button" onclick="openAdmin()">
+                    <i class="fas fa-arrow-right"></i> Go to Dashboard
+                </button>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p><i class="fas fa-info-circle"></i> RedCollar v1.0 - Secure Location Verification System</p>
+        </div>
+    </div>
+
+    <script>
+        function openPublic() {
+            window.location.href = '/public';
+        }
+
+        function openAdmin() {
+            window.location.href = '/admin';
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === '1') openPublic();
+            if (e.key === '2') openAdmin();
+        });
+    </script>
+</body>
+</html>
