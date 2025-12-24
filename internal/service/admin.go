@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"redCollar/internal/domain"
 
@@ -9,11 +10,12 @@ import (
 )
 
 type AdminService struct {
-	repo IncidentRepository
+	repo  IncidentRepository
+	cache IncidentCacheService
 }
 
-func NewAdminIncidentService(repo IncidentRepository) *AdminService {
-	return &AdminService{repo: repo}
+func NewAdminIncidentService(repo IncidentRepository, cache IncidentCacheService) *AdminService {
+	return &AdminService{repo: repo, cache: cache}
 }
 
 func (s *AdminService) Create(ctx context.Context, req domain.CreateIncidentRequest) (uuid.UUID, error) {
@@ -27,6 +29,7 @@ func (s *AdminService) Create(ctx context.Context, req domain.CreateIncidentRequ
 	if err := s.repo.Create(ctx, inc); err != nil {
 		return uuid.Nil, err
 	}
+	s.refreshCache(ctx)
 	return inc.ID, nil
 }
 func (s *AdminService) List(ctx context.Context, page, limit int) ([]*domain.Incident, int64, error) { // ← ИСПРАВЬ сигнатуру
@@ -58,11 +61,19 @@ func (s *AdminService) Update(ctx context.Context, id uuid.UUID, req domain.Upda
 	if req.Status != nil {
 		inc.Status = *req.Status
 	}
-	return s.repo.Update(ctx, inc)
+	if err := s.repo.Update(ctx, inc); err != nil {
+		return err
+	}
+	s.refreshCache(ctx)
+	return nil
 }
 
 func (s *AdminService) Delete(ctx context.Context, id uuid.UUID) error {
-	return s.repo.Delete(ctx, id)
+	if err := s.repo.Delete(ctx, id); err != nil {
+		return err
+	}
+	s.refreshCache(ctx)
+	return nil
 }
 
 func toIncidents(src []*domain.Incident) []domain.Incident {
@@ -71,4 +82,24 @@ func toIncidents(src []*domain.Incident) []domain.Incident {
 		out = append(out, *p)
 	}
 	return out
+}
+
+func (s *AdminService) refreshCache(ctx context.Context) {
+	incidents, err := s.repo.ListActive(ctx)
+	if err != nil {
+		// залогировать и выйти
+		return
+	}
+
+	cached := make([]domain.CachedIncident, 0, len(incidents))
+	for _, inc := range incidents {
+		cached = append(cached, domain.CachedIncident{
+			ID:       inc.ID,
+			Lat:      inc.Lat,
+			Lng:      inc.Lng,
+			RadiusKM: inc.RadiusKM,
+		})
+	}
+
+	_ = s.cache.SetActive(ctx, cached, 5*time.Minute)
 }

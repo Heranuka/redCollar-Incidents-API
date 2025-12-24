@@ -21,3 +21,18 @@ type Incident struct {
 	Status    IncidentStatus `json:"status"`
 	CreatedAt time.Time      `json:"created_at"`
 }
+
+type CachedIncident struct {
+	ID       uuid.UUID `json:"id"`
+	Lat      float64   `json:"lat"`
+	Lng      float64   `json:"lng"`
+	RadiusKM float64   `json:"radius_km"`
+}
+
+type NearbyIncident struct {
+	ID         uuid.UUID `json:"id"`
+	Lat        float64   `json:"lat"`
+	Lng        float64   `json:"lng"`
+	RadiusKM   float64   `json:"radius_km"`
+	DistanceKM float64   `json:"distance_km"`
+}

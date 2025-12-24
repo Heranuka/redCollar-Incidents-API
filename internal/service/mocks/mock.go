@@ -8,6 +8,7 @@ import (
 	context "context"
 	domain "redCollar/internal/domain"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
 	uuid "github.com/google/uuid"
@@ -192,6 +193,21 @@ func (mr *MockIncidentRepositoryMockRecorder) List(ctx, page, limit interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "List", reflect.TypeOf((*MockIncidentRepository)(nil).List), ctx, page, limit)
 }
 
+// ListActive mocks base method.
+func (m *MockIncidentRepository) ListActive(ctx context.Context) ([]*domain.Incident, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ListActive", ctx)
+	ret0, _ := ret[0].([]*domain.Incident)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// ListActive indicates an expected call of ListActive.
+func (mr *MockIncidentRepositoryMockRecorder) ListActive(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListActive", reflect.TypeOf((*MockIncidentRepository)(nil).ListActive), ctx)
+}
+
 // Update mocks base method.
 func (m *MockIncidentRepository) Update(ctx context.Context, incident *domain.Incident) error {
 	m.ctrl.T.Helper()
@@ -204,6 +220,58 @@ func (m *MockIncidentRepository) Update(ctx context.Context, incident *domain.In
 func (mr *MockIncidentRepositoryMockRecorder) Update(ctx, incident interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockIncidentRepository)(nil).Update), ctx, incident)
+}
+
+// MockIncidentCacheService is a mock of IncidentCacheService interface.
+type MockIncidentCacheService struct {
+	ctrl     *gomock.Controller
+	recorder *MockIncidentCacheServiceMockRecorder
+}
+
+// MockIncidentCacheServiceMockRecorder is the mock recorder for MockIncidentCacheService.
+type MockIncidentCacheServiceMockRecorder struct {
+	mock *MockIncidentCacheService
+}
+
+// NewMockIncidentCacheService creates a new mock instance.
+func NewMockIncidentCacheService(ctrl *gomock.Controller) *MockIncidentCacheService {
+	mock := &MockIncidentCacheService{ctrl: ctrl}
+	mock.recorder = &MockIncidentCacheServiceMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockIncidentCacheService) EXPECT() *MockIncidentCacheServiceMockRecorder {
+	return m.recorder
+}
+
+// GetActive mocks base method.
+func (m *MockIncidentCacheService) GetActive(ctx context.Context) ([]domain.CachedIncident, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetActive", ctx)
+	ret0, _ := ret[0].([]domain.CachedIncident)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetActive indicates an expected call of GetActive.
+func (mr *MockIncidentCacheServiceMockRecorder) GetActive(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetActive", reflect.TypeOf((*MockIncidentCacheService)(nil).GetActive), ctx)
+}
+
+// SetActive mocks base method.
+func (m *MockIncidentCacheService) SetActive(ctx context.Context, incidents []domain.CachedIncident, ttl time.Duration) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetActive", ctx, incidents, ttl)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetActive indicates an expected call of SetActive.
+func (mr *MockIncidentCacheServiceMockRecorder) SetActive(ctx, incidents, ttl interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetActive", reflect.TypeOf((*MockIncidentCacheService)(nil).SetActive), ctx, incidents, ttl)
 }
 
 // MockPublicIncidentService is a mock of PublicIncidentService interface.

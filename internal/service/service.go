@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"redCollar/internal/domain"
+	"time"
 
 	"github.com/google/uuid"
 )
@@ -21,6 +22,12 @@ type IncidentRepository interface {
 	Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error)
 	Update(ctx context.Context, incident *domain.Incident) error
 	Delete(ctx context.Context, id uuid.UUID) error
+	ListActive(ctx context.Context) ([]*domain.Incident, error)
+}
+
+type IncidentCacheService interface {
+	GetActive(ctx context.Context) ([]domain.CachedIncident, error)
+	SetActive(ctx context.Context, incidents []domain.CachedIncident, ttl time.Duration) error
 }
 
 // Публичные use-case'ы

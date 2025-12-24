@@ -2,13 +2,15 @@ package service
 
 import (
 	"context"
+	"math"
 	"time"
 
 	"log/slog"
 
-	"github.com/google/uuid"
 	"redCollar/internal/domain"
 	"redCollar/pkg/e"
+
+	"github.com/google/uuid"
 )
 
 type IncidentGeoRepository interface {
@@ -21,14 +23,14 @@ type WebhookQueue interface {
 }
 
 type publicIncidentService struct {
-	repo            IncidentGeoRepository
+	cache           IncidentCacheService
 	webhookQueue    WebhookQueue
 	logger          *slog.Logger
 	defaultRadiusKm float64
 }
 
 func NewPublicIncidentService(
-	repo IncidentGeoRepository,
+	cache IncidentCacheService,
 	q WebhookQueue,
 	logger *slog.Logger,
 	defaultRadiusKm float64,
@@ -37,34 +39,40 @@ func NewPublicIncidentService(
 		defaultRadiusKm = 1.0
 	}
 	return &publicIncidentService{
-		repo:            repo,
+		cache:           cache,
 		webhookQueue:    q,
 		logger:          logger,
 		defaultRadiusKm: defaultRadiusKm,
 	}
 }
 
-func (s *publicIncidentService) CheckLocation(
-	ctx context.Context,
-	req domain.LocationCheckRequest,
-) (domain.LocationCheckResponse, error) {
-	// базовая бизнес‑валидация
+func (s *publicIncidentService) CheckLocation(ctx context.Context, req domain.LocationCheckRequest) (domain.LocationCheckResponse, error) {
 	if req.Lat < -90 || req.Lat > 90 || req.Lng < -180 || req.Lng > 180 {
 		return domain.LocationCheckResponse{}, e.ErrInvalidCoordinates
 	}
 
-	// 1. ищем ближайшие инциденты
-	ids, err := s.repo.FindNearby(ctx, req.Lat, req.Lng, s.defaultRadiusKm)
+	// 1. ✅ Redis: АКТИВНЫЕ инциденты (0.1ms)
+	incidents, err := s.cache.GetActive(ctx)
 	if err != nil {
-		s.logger.Error("FindNearby failed", slog.Any("err", err))
+		s.logger.Error("cache.GetActive failed", slog.Any("err", err))
 		return domain.LocationCheckResponse{}, err
 	}
-	incidents := make([]string, len(ids))
-	for i, id := range ids {
-		incidents[i] = id.String()
+
+	// 2. ✅ CPU: фильтр по расстоянию (0.1ms)
+	nearby := filterNearby(incidents, req.Lat, req.Lng, s.defaultRadiusKm)
+
+	// 3. ids для ответа
+	ids := make([]uuid.UUID, 0, len(nearby))
+	for _, inc := range nearby {
+		ids = append(ids, inc.ID)
 	}
 
-	// 2. сохраняем факт проверки
+	incidentsStr := make([]string, len(ids))
+	for i, id := range ids {
+		incidentsStr[i] = id.String()
+	}
+
+	// 4. SaveCheck + Webhook (как было)
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
 		return domain.LocationCheckResponse{}, e.ErrInvalidUserID
@@ -78,12 +86,6 @@ func (s *publicIncidentService) CheckLocation(
 		CheckedAt:   time.Now().UTC(),
 	}
 
-	if err := s.repo.SaveCheck(ctx, check); err != nil {
-		s.logger.Error("SaveCheck failed", slog.Any("err", err))
-		// не роняем ответ
-	}
-
-	// 3. если есть инциденты — кладём задачу в очередь вебхуков
 	if len(ids) > 0 {
 		payload := domain.WebhookPayload{
 			UserID:    req.UserID,
@@ -97,6 +99,41 @@ func (s *publicIncidentService) CheckLocation(
 		}
 	}
 
-	// 4. возвращаем ответ клиенту
-	return domain.LocationCheckResponse{Incidents: incidents}, nil
+	return domain.LocationCheckResponse{Incidents: incidentsStr}, nil
+}
+
+// В service/utils.go
+func filterNearby(incidents []domain.CachedIncident, lat, lng, radiusKm float64) []domain.NearbyIncident {
+	var nearby []domain.NearbyIncident
+	for _, inc := range incidents {
+		dist := haversine(lat, lng, inc.Lat, inc.Lng)
+		if dist <= radiusKm {
+			nearby = append(nearby, domain.NearbyIncident{
+				ID:         inc.ID,
+				Lat:        inc.Lat,
+				Lng:        inc.Lng,
+				RadiusKM:   inc.RadiusKM,
+				DistanceKM: dist,
+			})
+		}
+	}
+	return nearby
+}
+func haversine(lat1, lon1, lat2, lon2 float64) float64 {
+	const R = 6371.0 // Радиус Земли в км
+
+	dLat := deg2rad(lat2 - lat1)
+	dLon := deg2rad(lon2 - lon1)
+
+	a := math.Sin(dLat/2)*math.Sin(dLat/2) +
+		math.Cos(deg2rad(lat1))*math.Cos(deg2rad(lat2))*
+			math.Sin(dLon/2)*math.Sin(dLon/2)
+
+	c := 2 * math.Atan2(math.Sqrt(a), math.Sqrt(1-a))
+
+	return R * c
+}
+
+func deg2rad(deg float64) float64 {
+	return deg * math.Pi / 180.0
 }

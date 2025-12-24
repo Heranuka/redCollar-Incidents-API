@@ -179,3 +179,45 @@ func (p IncidentAdmin) Delete(ctx context.Context, id uuid.UUID) error {
 	}
 	return nil
 }
+
+func (p IncidentAdmin) ListActive(ctx context.Context) ([]*domain.Incident, error) {
+	const op = "postgres.Incident.ListAllActive"
+
+	const query = `
+        SELECT id,
+               ST_Y(geo_point::geometry) AS lat,
+               ST_X(geo_point::geometry) AS lng,
+               radius_km,
+               status,
+               created_at
+        FROM incidents
+        WHERE status = 'active'
+    `
+
+	rows, err := p.pool.Query(ctx, query)
+	if err != nil {
+		return nil, e.WrapError(ctx, op, err)
+	}
+	defer rows.Close()
+
+	var incidents []*domain.Incident
+	for rows.Next() {
+		var inc domain.Incident
+		if err := rows.Scan(
+			&inc.ID,
+			&inc.Lat,
+			&inc.Lng,
+			&inc.RadiusKM,
+			&inc.Status,
+			&inc.CreatedAt,
+		); err != nil {
+			return nil, e.WrapError(ctx, op, err)
+		}
+		incidents = append(incidents, &inc)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, e.WrapError(ctx, op, err)
+	}
+
+	return incidents, nil
+}

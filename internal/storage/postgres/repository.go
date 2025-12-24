@@ -13,6 +13,7 @@ type IncidentRepository interface {
 	Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error)
 	Update(ctx context.Context, incident *domain.Incident) error
 	Delete(ctx context.Context, id uuid.UUID) error // soft delete
+	ListActive(ctx context.Context) ([]*domain.Incident, error)
 }
 
 type StatsRepository interface {

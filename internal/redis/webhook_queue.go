@@ -4,6 +4,8 @@ package redis
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"redCollar/pkg/e"
 	"time"
 
 	"redCollar/internal/domain"
@@ -33,6 +35,9 @@ func (q *WebhookQueue) BRPop(ctx context.Context, timeout time.Duration) (domain
 
 	res, err := q.client.BRPop(ctx, timeout, q.key).Result()
 	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return p, e.ErrWebHookEmpty
+		}
 		return p, err
 	}
 	if len(res) < 2 {

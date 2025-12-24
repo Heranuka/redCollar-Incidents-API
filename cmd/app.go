@@ -13,7 +13,9 @@ import (
 
 func Run() error {
 	logger := components.SetupLogger("local")
-	cfg, err := config.LoadConfig()
+	appCtx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	cfg, err := config.Load(appCtx, logger) // ← logger параметр
 	if err != nil {
 		logger.Error("load config failed", "err", err)
 		return err
@@ -21,9 +23,6 @@ func Run() error {
 	if cfg.APIKey == "" {
 		return fmt.Errorf("API_KEY is empty")
 	}
-
-	appCtx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	comps, err := components.InitComponents(appCtx, cfg, logger)
 	if err != nil {

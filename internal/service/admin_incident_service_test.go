@@ -66,7 +66,15 @@ func TestAdminIncidentService_Create_OK_Defaults(t *testing.T) {
 	defer ctrl.Finish()
 
 	repo := mock_service.NewMockIncidentRepository(ctrl)
-
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 	var got *domain.Incident
 	repo.EXPECT().
 		Create(gomock.Any(), gomock.Any()).
@@ -76,7 +84,7 @@ func TestAdminIncidentService_Create_OK_Defaults(t *testing.T) {
 		}).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 
 	req := domain.CreateIncidentRequest{
 		Lat:      55.75,
@@ -118,7 +126,7 @@ func TestAdminIncidentService_Create_RepoError(t *testing.T) {
 		Return(wantErr).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	_, err := svc.Create(context.Background(), domain.CreateIncidentRequest{
 		Lat: 10, Lng: 10, RadiusKM: 1,
@@ -152,11 +160,22 @@ func TestAdminIncidentService_Create_Boundaries(t *testing.T) {
 
 			repo := mock_service.NewMockIncidentRepository(ctrl)
 			repo.EXPECT().
+				ListActive(gomock.Any()).
+				Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+				Times(1)
+
+			cache := mock_service.NewMockIncidentCacheService(ctrl)
+			cache.EXPECT().
+				SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+				Return(nil).
+				AnyTimes()
+
+			repo.EXPECT().
 				Create(gomock.Any(), gomock.Any()).
 				Return(nil).
 				Times(1)
 
-			svc := service.NewAdminIncidentService(repo)
+			svc := service.NewAdminIncidentService(repo, cache)
 
 			id, err := svc.Create(context.Background(), c.req)
 			if err != nil {
@@ -194,7 +213,7 @@ func TestAdminIncidentService_Get_OK(t *testing.T) {
 		Return(want, nil).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	got, err := svc.Get(context.Background(), id)
 	if err != nil {
@@ -219,7 +238,7 @@ func TestAdminIncidentService_Get_RepoError(t *testing.T) {
 		Return(nil, errors.New("not found")).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	_, err := svc.Get(context.Background(), id)
 	if err == nil {
@@ -234,7 +253,6 @@ func TestAdminIncidentService_List_OK_Empty(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
 	repo := mock_service.NewMockIncidentRepository(ctrl)
 
 	repo.EXPECT().
@@ -242,7 +260,7 @@ func TestAdminIncidentService_List_OK_Empty(t *testing.T) {
 		Return([]*domain.Incident{}, int64(0), nil).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	list, total, err := svc.List(context.Background(), 1, 20)
 	if err != nil {
@@ -275,7 +293,7 @@ func TestAdminIncidentService_List_OK_NonEmpty(t *testing.T) {
 		Return(wantList, wantTotal, nil).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	list, total, err := svc.List(context.Background(), 2, 10)
 	if err != nil {
@@ -302,7 +320,7 @@ func TestAdminIncidentService_List_RepoError(t *testing.T) {
 		Return(nil, int64(0), errors.New("db error")).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	_, _, err := svc.List(context.Background(), 1, 20)
 	if err == nil {
@@ -317,8 +335,17 @@ func TestAdminIncidentService_Update_OK_AllFields(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 	existing := &domain.Incident{
@@ -349,7 +376,7 @@ func TestAdminIncidentService_Update_OK_AllFields(t *testing.T) {
 			}).Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 
 	if err := svc.Update(context.Background(), id, req); err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -378,6 +405,16 @@ func TestAdminIncidentService_Update_OK_OnlyLat(t *testing.T) {
 	defer ctrl.Finish()
 
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 	existing := &domain.Incident{
@@ -401,7 +438,7 @@ func TestAdminIncidentService_Update_OK_OnlyLat(t *testing.T) {
 			Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 
 	if err := svc.Update(context.Background(), id, req); err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -421,7 +458,18 @@ func TestAdminIncidentService_Update_OK_OnlyLng(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 	existing := &domain.Incident{ID: id, Lat: 10, Lng: 20, RadiusKM: 1, Status: domain.IncidentActive, CreatedAt: mustTime(t)}
@@ -440,7 +488,7 @@ func TestAdminIncidentService_Update_OK_OnlyLng(t *testing.T) {
 		}).Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 	if err := svc.Update(context.Background(), id, req); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -452,6 +500,16 @@ func TestAdminIncidentService_Update_OK_OnlyRadius(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 	existing := &domain.Incident{ID: id, Lat: 10, Lng: 20, RadiusKM: 1, Status: domain.IncidentActive, CreatedAt: mustTime(t)}
@@ -470,7 +528,7 @@ func TestAdminIncidentService_Update_OK_OnlyRadius(t *testing.T) {
 		}).Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 	if err := svc.Update(context.Background(), id, req); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -482,6 +540,16 @@ func TestAdminIncidentService_Update_OK_OnlyStatus(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 	existing := &domain.Incident{ID: id, Lat: 10, Lng: 20, RadiusKM: 1, Status: domain.IncidentActive, CreatedAt: mustTime(t)}
@@ -500,7 +568,7 @@ func TestAdminIncidentService_Update_OK_OnlyStatus(t *testing.T) {
 		}).Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 	if err := svc.Update(context.Background(), id, req); err != nil {
 		t.Fatalf("unexpected err: %v", err)
 	}
@@ -512,6 +580,11 @@ func TestAdminIncidentService_Update_GetError_NoUpdateCall(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 
@@ -521,7 +594,7 @@ func TestAdminIncidentService_Update_GetError_NoUpdateCall(t *testing.T) {
 		Times(1)
 
 	// Важно: repo.Update НЕ ожидаем вообще
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 
 	err := svc.Update(context.Background(), id, domain.UpdateIncidentRequest{
 		Lat: f64ptr(1),
@@ -537,7 +610,6 @@ func TestAdminIncidentService_Update_UpdateError(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mock_service.NewMockIncidentRepository(ctrl)
-
 	id := mustUUID(t)
 	existing := &domain.Incident{ID: id, Lat: 10, Lng: 20, RadiusKM: 1, Status: domain.IncidentActive, CreatedAt: mustTime(t)}
 
@@ -547,7 +619,7 @@ func TestAdminIncidentService_Update_UpdateError(t *testing.T) {
 		repo.EXPECT().Update(gomock.Any(), gomock.Any()).Return(wantErr).Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	err := svc.Update(context.Background(), id, domain.UpdateIncidentRequest{
 		RadiusKM: f64ptr(2),
@@ -565,6 +637,16 @@ func TestAdminIncidentService_Update_EmptyPatch(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 	existing := &domain.Incident{ID: id, Lat: 10, Lng: 20, RadiusKM: 1, Status: domain.IncidentActive, CreatedAt: mustTime(t)}
@@ -580,7 +662,7 @@ func TestAdminIncidentService_Update_EmptyPatch(t *testing.T) {
 		}).Times(1),
 	)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 
 	if err := svc.Update(context.Background(), id, domain.UpdateIncidentRequest{}); err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -594,7 +676,18 @@ func TestAdminIncidentService_Delete_OK(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
+
 	repo := mock_service.NewMockIncidentRepository(ctrl)
+	repo.EXPECT().
+		ListActive(gomock.Any()).
+		Return([]*domain.Incident{}, nil). // можешь подставить нужный список
+		Times(1)
+
+	cache := mock_service.NewMockIncidentCacheService(ctrl)
+	cache.EXPECT().
+		SetActive(gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil).
+		AnyTimes()
 
 	id := mustUUID(t)
 
@@ -603,7 +696,7 @@ func TestAdminIncidentService_Delete_OK(t *testing.T) {
 		Return(nil).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, cache)
 
 	if err := svc.Delete(context.Background(), id); err != nil {
 		t.Fatalf("unexpected err: %v", err)
@@ -624,7 +717,7 @@ func TestAdminIncidentService_Delete_RepoError(t *testing.T) {
 		Return(errors.New("db error")).
 		Times(1)
 
-	svc := service.NewAdminIncidentService(repo)
+	svc := service.NewAdminIncidentService(repo, nil)
 
 	if err := svc.Delete(context.Background(), id); err == nil {
 		t.Fatalf("expected error, got nil")

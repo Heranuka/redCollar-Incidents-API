@@ -23,6 +23,7 @@ var (
 	ErrUniqueViolation    = errors.New("unique violation")
 	ErrInvalidCoordinates = errors.New("invalid coordinates")
 	ErrInvalidUserID      = errors.New("invalid user_id")
+	ErrWebHookEmpty       = errors.New("webhook queue is empty")
 )
 
 func WrapError(ctx context.Context, op string, err error) error {

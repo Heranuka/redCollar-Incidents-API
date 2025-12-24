@@ -7,19 +7,22 @@ import (
 	"os"
 	"redCollar/internal/api"
 	"redCollar/internal/config"
+	redis2 "redCollar/internal/redis"
 	"redCollar/internal/service"
 	"redCollar/internal/storage/postgres"
-	"redCollar/internal/storage/redis"
+	"redCollar/internal/workers"
 	"redCollar/pkg/logger"
 	"time"
 )
 
 type Components struct {
-	logger     *slog.Logger
-	HttpServer *api.Server
-	Postgres   *postgres.Postgres
-	Redis      *redis.Redis        // ← ДОБАВЬ Redis
-	WebhookQ   *redis.WebhookQueue // ← ДОБАВЬ очередь
+	logger          *slog.Logger
+	HttpServer      *api.Server
+	Postgres        *postgres.Postgres
+	Redis           *redis2.Redis
+	WebhookQ        *redis2.WebhookQueue
+	LocationChecker *workers.LocationChecker
+	webhookSender   *service.WebhookSender // ← ДОБАВИЛИ!
 }
 
 func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Components, error) {
@@ -34,29 +37,45 @@ func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger
 	}
 
 	logger.Info("Initializing Redis")
-	redisClient, err := redis.NewRedis(ctx, cfg, logger)
+	redisClient, err := redis2.NewRedis(ctx, cfg, logger)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init redis: %w", err)
 	}
 
-	webhookQueue := redis.NewWebhookQueue(redisClient.Client, "webhooks:queue")
+	webhookQueue := redis2.NewWebhookQueue(redisClient.Client, "webhooks:queue")
+	webhookSender := service.NewWebhookSender(logger, cfg.Webhook, webhookQueue)
 
-	// ← ИСПРАВЬ: убери дублирующий NewService()
-	adminSvc := service.NewAdminIncidentService(storage.AdminIncidents())
-	publicSvc := service.NewPublicIncidentService(storage.PublicIncidents(), webhookQueue, logger, 1.0)
+	logger.Info("🔥 Starting webhookSender",
+		slog.String("url", cfg.Webhook.URL),
+		slog.String("queue", "webhooks:queue")) // ← ИСПРАВИЛИ!
+
+	go func() {
+		logger.Info("🚀 webhookSender goroutine launched")
+		webhookSender.Run(ctx)
+	}()
+
+	cache := redis2.NewIncidentCache(redisClient)
+	adminSvc := service.NewAdminIncidentService(storage.AdminIncidents(), cache)
+	publicSvc := service.NewPublicIncidentService(cache, webhookQueue, logger, 1.0)
 	statsSvc := service.NewStatsService(storage.Stats())
+	locationChecker := workers.NewLocationChecker(cache, 10)
 
-	srv := service.NewService(adminSvc, publicSvc, statsSvc) // ← ОДИН раз
+	logger.Info("🚀 Starting locationChecker")
+	locationChecker.Start(ctx)
+
+	srv := service.NewService(adminSvc, publicSvc, statsSvc)
 
 	httpServer := api.NewServer(cfg, logger, srv)
 	logger.Info("Initialized server")
 
 	return &Components{
-		logger:     logger,
-		HttpServer: httpServer,
-		Postgres:   storage,
-		Redis:      redisClient,  // ← ДОБАВЬ
-		WebhookQ:   webhookQueue, // ← ДОБАВЬ
+		logger:          logger,
+		HttpServer:      httpServer,
+		Postgres:        storage,
+		Redis:           redisClient,
+		WebhookQ:        webhookQueue,
+		LocationChecker: locationChecker,
+		webhookSender:   webhookSender, // ← СОХРАНИЛИ!
 	}, nil
 }
 
@@ -87,15 +106,25 @@ func SetupLogger(env string) *slog.Logger {
 
 func (c *Components) ShutdownAll() {
 	start := time.Now()
-	c.logger.Info("Завершение работы компонентов началось")
+	c.logger.Info("🛑 Завершение работы компонентов началось")
 
+	// ✅ Останавливаем locationChecker
+	if c.LocationChecker != nil {
+		c.logger.Info("🛑 Stopping locationChecker...")
+		c.LocationChecker.Stop()
+	}
+
+	// DB connections
+	c.logger.Info("🛑 Closing Postgres...")
 	c.Postgres.Pool.Close()
+
+	c.logger.Info("🛑 Closing Redis...")
 	if c.Redis != nil {
 		if err := c.Redis.Close(); err != nil {
 			c.logger.Error("Redis close failed", slog.String("err", err.Error()))
 		}
 	}
 
-	c.logger.Info("Все компоненты успешно завершили работу",
+	c.logger.Info("✅ Все компоненты завершили работу",
 		slog.Duration("latency", time.Since(start)))
 }
