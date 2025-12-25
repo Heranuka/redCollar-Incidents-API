@@ -2,7 +2,7 @@
 
 Сервис для управления инцидентами (admin CRUD), публичной проверки координат и health-check.
 
----
+<hr/>
 
 ## Содержание
 
@@ -12,120 +12,152 @@
   <li><a href="#quickstart">Быстрый старт</a></li>
   <li><a href="#env">Переменные окружения</a></li>
   <li><a href="#api">API</a></li>
+  <li><a href="#ui">UI</a></li>
   <li><a href="#examples">Примеры запросов (curl)</a></li>
   <li><a href="#tests">Тесты</a></li>
   <li><a href="#coverage">Покрытие</a></li>
   <li><a href="#debug">Отладка</a></li>
 </ul>
 
----
+<hr/>
 
-## <span id="features">Возможности</span>
+<h2 id="features">Возможности</h2>
 
-- **Admin API**: создание / просмотр / обновление / удаление (soft-delete) инцидентов (требуется API key).
-- **Public API**: проверка координат пользователя.
-- **System API**: health endpoint.
+<ul>
+  <li><b>Admin API</b>: создание / просмотр / обновление / удаление (soft-delete) инцидентов (требуется API key).</li>
+  <li><b>Public API</b>: проверка координат пользователя.</li>
+  <li><b>System API</b>: health endpoint.</li>
+</ul>
 
----
+<hr/>
 
-## <span id="stack">Стек</span>
+<h2 id="stack">Стек</h2>
 
-- Go + chi
-- Postgres + PostGIS
-- Redis
-- Docker Compose
+<ul>
+  <li>Go + chi</li>
+  <li>Postgres + PostGIS</li>
+  <li>Redis</li>
+  <li>Docker Compose</li>
+</ul>
 
----
+<hr/>
 
-## <span id="quickstart">Быстрый старт (Docker Compose)</span>
+<h2 id="quickstart">Быстрый старт (Docker Compose)</h2>
 
-1) Создай файл `.env` рядом с `docker-compose.yml` (пример ниже).
-2) Подними сервисы:
+<ol>
+  <li>Создай файл <code>.env</code> рядом с <code>docker-compose.yml</code> (пример ниже).</li>
+  <li>Подними сервисы:</li>
+</ol>
 
 <pre><code>docker compose up --build --force-recreate</code></pre>
 
-Остановить:
+<p>Остановить:</p>
 
 <pre><code>docker compose down</code></pre>
 
-3) Проверь здоровье сервиса:
+<ol start="3">
+  <li>Проверь здоровье сервиса:</li>
+</ol>
 
 <pre><code>curl -i http://localhost:8080/api/v1/system/health</code></pre>
 
----
+<hr/>
 
-## <span id="env">Переменные окружения (.env)</span>
+<h2 id="env">Переменные окружения (.env)</h2>
 
-Пример `.env`:
+<p>Пример <code>.env</code>:</p>
 
-<pre><code># --- APP ---
-ENV=local
-HTTP_PORT=8080
+<pre><code>ENV=local
 
-# --- SECURITY ---
-API_KEY=super-secret-key
+# HTTP
+HTTP_PORT=:8080
+HTTP_READ_TIMEOUT=10s
+HTTP_WRITE_TIMEOUT=10s
+HTTP_SHUTDOWN_TIMEOUT=10s
 
-# --- POSTGRES ---
+# POSTGRES
 POSTGRES_HOST=pg-local
 POSTGRES_PORT=5432
-POSTGRES_DATABASE=postgres
+POSTGRES_DB=redcollar_db
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=1
+POSTGRES_PASSWORD=postgres
 POSTGRES_SSL_MODE=disable
 
-# --- REDIS ---
-REDIS_ADDR=redis:6379
+# REDIS
+REDIS_ADDR=redis-local:6379
 REDIS_PASSWORD=
 REDIS_DB=0
 
-# --- WEBHOOK ---
-WEBHOOK_URL=http://webhook-mock:80/webhook</code></pre>
+# API
+API_KEY=super-secret-key
 
-> Рекомендация: не оставляй `API_KEY` пустым — иначе можно случайно “открыть” админские ручки.
+# WEBHOOK
+WEBHOOK_URL=https://webhook.site/5fc9c082-7cf6-47c7-94b5-be7d570346d1
+WEBHOOK_DISABLED=false</code></pre>
 
----
+<blockquote>
+  <p>Рекомендация: не оставляй <code>API_KEY</code> пустым — иначе можно случайно “открыть” админские ручки.</p>
+</blockquote>
 
-## <span id="api">API</span>
+<hr/>
 
-<b>Base URL:</b> <code>http://localhost:8080/api/v1</code>
+<h2 id="api">API</h2>
+
+<p><b>Base URL:</b> <code>http://localhost:8080/api/v1</code></p>
 
 <h3>System</h3>
 
-- <code>GET /system/health</code>
+<ul>
+  <li><code>GET /system/health</code></li>
+</ul>
 
 <h3>Admin (требует API key)</h3>
 
-Все запросы к <code>/api/v1/admin/*</code> требуют заголовок:
+<p>Все запросы к <code>/api/v1/admin/*</code> требуют заголовок:</p>
 
 <pre><code>X-API-Key: &lt;API_KEY&gt;</code></pre>
 
-Доступные ручки:
+<p>Доступные ручки:</p>
 
-- <code>POST /admin/incidents/</code> — создать инцидент
-- <code>GET /admin/incidents/</code> — список (пагинация)
-- <code>GET /admin/incidents/{id}/</code> — получить по id
-- <code>PUT /admin/incidents/{id}/</code> — обновить
-- <code>DELETE /admin/incidents/{id}/</code> — удалить (soft delete)
-- <code>GET /admin/incidents/stats</code> — статистика
+<ul>
+  <li><code>POST /admin/incidents/</code> — создать инцидент</li>
+  <li><code>GET /admin/incidents/</code> — список (пагинация)</li>
+  <li><code>GET /admin/incidents/{id}/</code> — получить по id</li>
+  <li><code>PUT /admin/incidents/{id}/</code> — обновить</li>
+  <li><code>DELETE /admin/incidents/{id}/</code> — удалить (soft delete)</li>
+  <li><code>GET /admin/incidents/stats</code> — статистика</li>
+</ul>
 
 <h3>Public</h3>
 
-- <code>POST /location/check</code> — проверить координаты
+<ul>
+  <li><code>POST /location/check</code> — проверить координаты</li>
+</ul>
 
----
+<hr/>
 
-## <span id="examples">Примеры запросов (curl)</span>
+<h2 id="ui">UI</h2>
+
+<p>
+  В проекте есть <b>UI-интерфейс</b> (веб-страница), который работает поверх этого API.
+</p>
+
+<p>UI доступен после запуска Docker Compose по адресу:</p>
+
+<pre><code>http://localhost:8080/</code></pre>
+
+<hr/>
+
+<h2 id="examples">Примеры запросов (curl)</h2>
 
 <details>
   <summary><b>System health</b></summary>
-
-<pre><code>curl -i http://localhost:8080/api/v1/system/health</code></pre>
+  <pre><code>curl -i http://localhost:8080/api/v1/system/health</code></pre>
 </details>
 
 <details>
   <summary><b>Admin: создать инцидент</b></summary>
-
-<pre><code>curl -i -X POST http://localhost:8080/api/v1/admin/incidents/ \
+  <pre><code>curl -i -X POST http://localhost:8080/api/v1/admin/incidents/ \
   -H "Content-Type: application/json" \
   -H "X-API-Key: super-secret-key" \
   -d '{"lat":55.75,"lng":37.61,"radius_km":1}'</code></pre>
@@ -133,49 +165,43 @@ WEBHOOK_URL=http://webhook-mock:80/webhook</code></pre>
 
 <details>
   <summary><b>Admin: список инцидентов</b></summary>
-
-<pre><code>curl -i "http://localhost:8080/api/v1/admin/incidents/?page=1&limit=20" \
+  <pre><code>curl -i "http://localhost:8080/api/v1/admin/incidents/?page=1&amp;limit=20" \
   -H "X-API-Key: super-secret-key"</code></pre>
 </details>
 
 <details>
   <summary><b>Admin: получить / обновить / удалить</b></summary>
-
-<pre><code># GET
+  <pre><code># GET
 curl -i "http://localhost:8080/api/v1/admin/incidents/&lt;id&gt;/" \
   -H "X-API-Key: super-secret-key"
 
 # PUT
 curl -i -X PUT "http://localhost:8080/api/v1/admin/incidents/&lt;id&gt;/" \
-  -H "Content-Type: application/json" \
-  -H "X-API-Key: super-secret-key" \
-  -d '{"radius_km":2,"status":"active"}'
+-H "Content-Type: application/json" \
+-H "X-API-Key: super-secret-key" \
+-d '{"radius_km":2,"status":"active"}'
 
 # DELETE
 curl -i -X DELETE "http://localhost:8080/api/v1/admin/incidents/&lt;id&gt;/" \
-  -H "X-API-Key: super-secret-key"</code></pre>
+-H "X-API-Key: super-secret-key"</code></pre>
 </details>
 
 <details>
   <summary><b>Admin: stats</b></summary>
-
-<pre><code>curl -i "http://localhost:8080/api/v1/admin/stats?minutes=60" \
-  -H "X-API-Key: super-secret-key"
-</code></pre>
+  <pre><code>curl -i "http://localhost:8080/api/v1/admin/stats?minutes=60" \
+  -H "X-API-Key: super-secret-key"</code></pre>
 </details>
 
 <details>
   <summary><b>Public: location check</b></summary>
-
-<pre><code>curl -i -X POST http://localhost:8080/api/v1/location/check \
+  <pre><code>curl -i -X POST http://localhost:8080/api/v1/location/check \
   -H "Content-Type: application/json" \
   -d '{"lat":55.75,"lng":37.61,"user_id":"00000000-0000-0000-0000-000000000001"}'</code></pre>
 </details>
 
 <hr/>
-<div> <h2>UI</h2> <p> В проекте есть <b>UI-интерфейс</b> (веб-страница), который работает поверх этого API и позволяет удобнее 
-пользоваться сервисом. </p> <p> UI доступен после запуска Docker Compose на : <code>http://localhost:8080/</code> </p> </div>
-<h2><span id="tests">Тесты</span></h2>
+
+<h2 id="tests">Тесты</h2>
 
 <p>В проекте есть:</p>
 <ul>
@@ -213,7 +239,7 @@ curl -i -X DELETE "http://localhost:8080/api/v1/admin/incidents/&lt;id&gt;/" \
 
 <hr/>
 
-<h2><span id="coverage">Покрытие</span></h2>
+<h2 id="coverage">Покрытие</h2>
 
 <p>Сводка покрытия:</p>
 <pre><code>go test ./... -count=1 -cover</code></pre>
@@ -223,16 +249,16 @@ curl -i -X DELETE "http://localhost:8080/api/v1/admin/incidents/&lt;id&gt;/" \
 go tool cover -func=coverage.out
 go tool cover -html=coverage.out</code></pre>
 
----
+<hr/>
 
-## <span id="debug">Отладка</span>
+<h2 id="debug">Отладка</h2>
 
 <ul>
   <li>
     Если админские запросы возвращают <code>401 Unauthorized</code>, значит сервер не принял предоставленные учётные данные (в данном проекте — API key).
   </li>
   <li>
-    Убедись, что отправляешь заголовок <code>X-API-Key</code> и он совпадает с <code>API_KEY</code> внутри контейнера.
+    Убедись, что отправляешь заголовок <code>X-API-Key</code> и он совпадает с <code>API_KEY</code> внутри контейнера:
     <pre><code>docker exec -it app sh -lc 'echo "API_KEY=$API_KEY"'</code></pre>
   </li>
   <li>
@@ -240,7 +266,7 @@ go tool cover -html=coverage.out</code></pre>
     <pre><code>docker compose up --build --force-recreate</code></pre>
   </li>
   <li>
-    Если нужно увидеть список запускаемых тестов — добавь <code>-v</code> (будут строки <code>=== RUN</code>/<code>--- PASS</code>).
+    Если нужно увидеть список запускаемых тестов — добавь <code>-v</code> (будут строки <code>=== RUN</code>/<code>--- PASS</code>):
     <pre><code>go test ./... -count=1 -v</code></pre>
   </li>
 </ul>
