@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -23,7 +22,6 @@ func NewAdminIncidentService(repo IncidentRepository, cache IncidentCacheService
 func (s *AdminService) Create(ctx context.Context, req domain.CreateIncidentRequest) (uuid.UUID, error) {
 	status := req.Status
 	if status == "" {
-		fmt.Println("----------------------------------")
 		status = domain.IncidentActive
 	}
 	inc := &domain.Incident{
@@ -39,12 +37,12 @@ func (s *AdminService) Create(ctx context.Context, req domain.CreateIncidentRequ
 	s.refreshCache(ctx)
 	return inc.ID, nil
 }
-func (s *AdminService) List(ctx context.Context, page, limit int) ([]*domain.Incident, int64, error) { // ← ИСПРАВЬ сигнатуру
+func (s *AdminService) List(ctx context.Context, page, limit int) ([]*domain.Incident, int64, error) {
 	items, total, err := s.repo.List(ctx, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}
-	return items, total, nil // ← возвращаем как есть, без toIncidents
+	return items, total, nil
 }
 
 func (s *AdminService) Get(ctx context.Context, id uuid.UUID) (*domain.Incident, error) {
@@ -93,7 +91,7 @@ func toIncidents(src []*domain.Incident) []domain.Incident {
 func (s *AdminService) refreshCache(ctx context.Context) {
 	incidents, err := s.repo.ListActive(ctx)
 	if err != nil {
-		slog.Default().Error("refreshCache: repo.ListActive failed", slog.Any("error", err)) // или s.logger если есть
+		slog.Default().Error("refreshCache: repo.ListActive failed", slog.Any("error", err))
 		return
 	}
 

@@ -14,7 +14,7 @@ import (
 	"github.com/golang/mock/gomock"
 
 	"redCollar/internal/api/handlers/http/public"
-	mock_public "redCollar/internal/api/handlers/http/public/mocks" // <-- поправь путь
+	mock_public "redCollar/internal/api/handlers/http/public/mocks"
 	"redCollar/internal/domain"
 )
 
@@ -85,7 +85,6 @@ func TestPublicLocationCheck_InvalidJSON_400(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/location/check", bytes.NewBufferString("{bad json"))
 	rr := httptest.NewRecorder()
 
-	// Важно: при невалидном JSON сервис не должен вызываться (gomock это проверит, т.к. EXPECT не задан)
 	h.PublicLocationCheck(rr, req)
 
 	if rr.Code != http.StatusBadRequest {
@@ -121,7 +120,6 @@ func TestPublicLocationCheck_UnknownField_400(t *testing.T) {
 	svc := mock_public.NewMockPublicHandler(ctrl)
 	h := public.NewHandler(newTestLogger(), svc)
 
-	// Лишнее поле "foo" должно заруинить Decode из-за DisallowUnknownFields. [web:685]
 	reqBody := `{"user_id":"00000000-0000-0000-0000-000000000001","lat":55.75,"lng":37.61,"foo":123}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/location/check", bytes.NewBufferString(reqBody))
 	rr := httptest.NewRecorder()
@@ -173,17 +171,10 @@ func TestPublicLocationCheck_JSONWithExtraTrailingData_400(t *testing.T) {
 	svc := mock_public.NewMockPublicHandler(ctrl)
 	h := public.NewHandler(newTestLogger(), svc)
 
-	// Decoder.Decode(&req) считает только первый JSON-объект, а оставшиеся байты могут остаться в body.
-	// Твой хендлер не делает вторую Decode для проверки EOF, поэтому этот кейс зависит от реализации.
-	// Оставляю как "документирующий": если хочешь строгость, добавь второй decode и проверку EOF.
 	reqBody := `{"user_id":"00000000-0000-0000-0000-000000000001","lat":55.75,"lng":37.61}{"x":1}`
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/location/check", bytes.NewBufferString(reqBody))
 	rr := httptest.NewRecorder()
-
-	// Сейчас возможны 2 варианта:
-	// - либо 200 (если первый объект распарсился и сервис вызвался)
-	// - либо 400 (если decoder заругался)
-	// Поэтому здесь лучше либо удалить тест, либо усилить хендлер.
+	
 	h.PublicLocationCheck(rr, req)
 
 	if rr.Code != http.StatusOK && rr.Code != http.StatusBadRequest {

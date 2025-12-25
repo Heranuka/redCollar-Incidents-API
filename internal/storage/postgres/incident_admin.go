@@ -147,7 +147,7 @@ func (p *IncidentAdmin) Get(ctx context.Context, id uuid.UUID) (*domain.Incident
 		&inc.CreatedAt,
 	)
 	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) { // pgxpool QueryRow.Scan => ErrNoRows [web:403]
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, fmt.Errorf("%s: %w", op, e.ErrNotFound)
 		}
 		p.logger.Error("db queryrow scan failed", slog.String("op", op), slog.Any("error", err), slog.String("id", id.String()))

@@ -31,7 +31,6 @@ func Limit(rps, burst int, ttl time.Duration, logger *slog.Logger) func(http.Han
 		ttl:      ttl,
 	}
 
-	// Cleanup goroutine
 	go l.cleanupVisitors(logger)
 
 	return l.LimitMiddleware(logger)

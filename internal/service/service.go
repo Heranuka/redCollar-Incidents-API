@@ -30,12 +30,10 @@ type IncidentCacheService interface {
 	SetActive(ctx context.Context, incidents []domain.CachedIncident, ttl time.Duration) error
 }
 
-// Публичные use-case'ы
 type PublicIncidentService interface {
 	CheckLocation(ctx context.Context, req domain.LocationCheckRequest) (domain.LocationCheckResponse, error)
 }
 
-// Статистика
 type StatsService interface {
 	GetStats(ctx context.Context, req domain.StatsRequest) (*domain.IncidentStats, error)
 }

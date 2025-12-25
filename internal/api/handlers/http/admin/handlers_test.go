@@ -16,16 +16,15 @@ import (
 	"github.com/google/uuid"
 
 	"redCollar/internal/api/handlers/http/admin"
-	mock_admin "redCollar/internal/api/handlers/http/admin/mocks" // <-- поправь путь
+	mock_admin "redCollar/internal/api/handlers/http/admin/mocks"
 	"redCollar/internal/domain"
 )
 
 func newTestLogger() *slog.Logger {
-	// достаточно no-op логгера
+
 	return slog.New(slog.NewTextHandler(bytes.NewBuffer(nil), &slog.HandlerOptions{Level: slog.LevelError}))
 }
 
-// addChiURLParam добавляет URLParam для chi.URLParam(...) в хендлер-тесте. [web:572]
 func addChiURLParam(r *http.Request, key, val string) *http.Request {
 	rctx := chi.NewRouteContext()
 	rctx.URLParams.Add(key, val)
@@ -127,8 +126,6 @@ func TestAdminIncidentCreate_ServiceError_500or4xx(t *testing.T) {
 	}
 }
 
-// --- List ---
-
 func TestAdminIncidentList_Defaults_OK(t *testing.T) {
 	t.Parallel()
 
@@ -188,8 +185,6 @@ func TestAdminIncidentList_LimitClampedTo100(t *testing.T) {
 	}
 }
 
-// --- Get ---
-
 func TestAdminIncidentGet_InvalidID_400(t *testing.T) {
 	t.Parallel()
 
@@ -248,8 +243,6 @@ func TestAdminIncidentGet_OK(t *testing.T) {
 		t.Fatalf("expected id=%s got=%s", id, got.ID)
 	}
 }
-
-// --- Update ---
 
 func TestAdminIncidentUpdate_InvalidID_400(t *testing.T) {
 	t.Parallel()
@@ -333,8 +326,6 @@ func TestAdminIncidentUpdate_OK_204(t *testing.T) {
 	}
 }
 
-// --- Delete ---
-
 func TestAdminIncidentDelete_InvalidID_400(t *testing.T) {
 	t.Parallel()
 
@@ -386,8 +377,6 @@ func TestAdminIncidentDelete_OK_204(t *testing.T) {
 		t.Fatalf("expected %d got %d body=%s", http.StatusNoContent, rr.Code, rr.Body.String())
 	}
 }
-
-// --- Stats ---
 
 func TestAdminStats_OK(t *testing.T) {
 	t.Parallel()

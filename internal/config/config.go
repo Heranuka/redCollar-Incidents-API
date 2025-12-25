@@ -48,12 +48,10 @@ type WebhookConfig struct {
 	Disabled bool   `json:"disabled"`
 }
 
-// ✅ Load БЕЗ logger параметра (совместимо с main.go)
 func Load(ctx context.Context) (*Config, error) {
-	// Создаем временный logger
+
 	stdLogger := slog.New(slog.NewTextHandler(os.Stdout, nil))
 
-	// Загружаем .env
 	if err := godotenv.Load(); err != nil && !os.IsNotExist(err) {
 		stdLogger.Warn(".env load warning", slog.Any("error", err))
 	}
@@ -86,7 +84,6 @@ func Load(ctx context.Context) (*Config, error) {
 		},
 	}
 
-	// ✅ ВАЛИДАЦИЯ БЕЗ logger
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -102,7 +99,7 @@ func Load(ctx context.Context) (*Config, error) {
 }
 
 func (c *Config) Validate() error {
-	// ✅ ИСПРАВЛЕНА логика порта
+
 	if c.Http.Port == "" || (len(c.Http.Port) > 0 && c.Http.Port[0] != ':') {
 		return errors.New("HTTP_PORT must start with ':' like ':8080'")
 	}
@@ -118,7 +115,6 @@ func (c *Config) Validate() error {
 	return nil
 }
 
-// ✅ Helpers БЕЗ logger
 func getEnv(key, def string) string {
 	if v := os.Getenv(key); v != "" {
 		return v

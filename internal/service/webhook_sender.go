@@ -19,11 +19,11 @@ import (
 type WebhookSender struct {
 	logger *slog.Logger
 	cfg    config.WebhookConfig
-	queue  *redis.WebhookQueue // ← ИЗМЕНЕНО: Queue → WebhookQueue
+	queue  *redis.WebhookQueue
 	http   *http.Client
 }
 
-func NewWebhookSender(logger *slog.Logger, cfg config.WebhookConfig, q *redis.WebhookQueue) *WebhookSender { // ← ИЗМЕНЕНО
+func NewWebhookSender(logger *slog.Logger, cfg config.WebhookConfig, q *redis.WebhookQueue) *WebhookSender {
 	return &WebhookSender{
 		logger: logger,
 		cfg:    cfg,
@@ -32,7 +32,7 @@ func NewWebhookSender(logger *slog.Logger, cfg config.WebhookConfig, q *redis.We
 	}
 }
 func (s *WebhookSender) Run(ctx context.Context) {
-	s.logger.Info("webhookSender STARTED", slog.String("url", s.cfg.URL)) // [file:469]
+	s.logger.Info("webhookSender STARTED", slog.String("url", s.cfg.URL))
 
 	for {
 		select {

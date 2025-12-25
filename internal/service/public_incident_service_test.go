@@ -11,14 +11,14 @@ import (
 	"redCollar/internal/domain"
 	"redCollar/internal/service"
 
-	mock_service "redCollar/internal/service/mocks" // <-- поправь на свой путь
+	mock_service "redCollar/internal/service/mocks"
 )
 
 func TestService_CheckLocation_Delegates_OK_EmptyIncidents(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
-	defer ctrl.Finish() // можно оставить явно для совместимости [web:564]
+	defer ctrl.Finish()
 
 	publicSvc := mock_service.NewMockPublicIncidentService(ctrl)
 
@@ -142,7 +142,7 @@ func TestService_CheckLocation_PassesContextValue(t *testing.T) {
 			}
 			return domain.LocationCheckResponse{Incidents: nil}, nil
 		}).
-		Times(1) // контролируем, что прокси вызвал ровно один раз [web:564][web:583]
+		Times(1)
 
 	svc := service.NewService(nil, publicSvc, nil)
 

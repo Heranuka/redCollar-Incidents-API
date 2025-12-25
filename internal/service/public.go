@@ -14,12 +14,6 @@ import (
 	"github.com/google/uuid"
 )
 
-/*
-	type IncidentGeoRepository interface {
-		FindNearby(ctx context.Context, lat, lng, radiusKm float64) ([]uuid.UUID, error)
-		SaveCheck(ctx context.Context, check *domain.LocationCheck) error
-	}
-*/
 type CheckSaver interface {
 	SaveCheck(ctx context.Context, check *domain.LocationCheck) error
 }
@@ -78,7 +72,6 @@ func (s *publicIncidentService) CheckLocation(ctx context.Context, req domain.Lo
 	}
 	s.logger.Debug("cache loaded", slog.Int("active_incidents", len(incidents)))
 
-	// ✅ фикс: проверяем по радиусу каждого инцидента
 	nearby := filterNearby(incidents, req.Lat, req.Lng)
 	s.logger.Info("haversine filter done",
 		slog.Int("total", len(incidents)),
@@ -94,7 +87,7 @@ func (s *publicIncidentService) CheckLocation(ctx context.Context, req domain.Lo
 
 	userUUID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		s.logger.Warn("invalid userid", slog.String("user_id", req.UserID), slog.Any("error", err))
+		s.logger.Warn("invalid user_id", slog.String("user_id", req.UserID), slog.Any("error", err))
 		return domain.LocationCheckResponse{}, e.ErrInvalidUserID
 	}
 
@@ -148,7 +141,6 @@ func filterNearby(incidents []domain.CachedIncident, lat, lng float64) []domain.
 	for _, inc := range incidents {
 		dist := haversine(lat, lng, inc.Lat, inc.Lng)
 
-		// ✅ радиус берём из инцидента
 		if dist <= inc.RadiusKM {
 			nearby = append(nearby, domain.NearbyIncident{
 				ID:         inc.ID,
@@ -163,7 +155,7 @@ func filterNearby(incidents []domain.CachedIncident, lat, lng float64) []domain.
 }
 
 func haversine(lat1, lon1, lat2, lon2 float64) float64 {
-	const R = 6371.0 // Радиус Земли в км
+	const R = 6371.0
 
 	dLat := deg2rad(lat2 - lat1)
 	dLon := deg2rad(lon2 - lon1)

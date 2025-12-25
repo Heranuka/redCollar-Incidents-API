@@ -181,7 +181,7 @@ func (h *Handler) AdminStats(w http.ResponseWriter, r *http.Request) {
 	l := h.log(r)
 	l.Debug("AdminStats", slog.String("query", r.URL.RawQuery), slog.String("remote", r.RemoteAddr))
 
-	minutesStr := r.URL.Query().Get("minutes") // query param
+	minutesStr := r.URL.Query().Get("minutes")
 	if minutesStr == "" {
 		minutesStr = "60"
 	}

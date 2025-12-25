@@ -56,7 +56,7 @@ func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger
 
 	cache := redis2.NewIncidentCache(redisClient)
 	adminSvc := service.NewAdminIncidentService(storage.AdminIncidents(), cache)
-	statsRepo := storage.Stats() // *postgres.StatsRepo
+	statsRepo := storage.Stats()
 	publicSvc := service.NewPublicIncidentService(cache, statsRepo, webhookQueue, logger, 1.0)
 	statsSvc := service.NewStatsService(storage.Stats())
 	locationChecker := workers.NewLocationChecker(cache, 10)
@@ -76,7 +76,7 @@ func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		Redis:           redisClient,
 		WebhookQ:        webhookQueue,
 		LocationChecker: locationChecker,
-		webhookSender:   webhookSender, // ← СОХРАНИЛИ!
+		webhookSender:   webhookSender,
 	}, nil
 }
 
@@ -109,13 +109,11 @@ func (c *Components) ShutdownAll() {
 	start := time.Now()
 	c.logger.Info("🛑 Завершение работы компонентов началось")
 
-	// ✅ Останавливаем locationChecker
 	if c.LocationChecker != nil {
 		c.logger.Info("🛑 Stopping locationChecker...")
 		c.LocationChecker.Stop()
 	}
 
-	// DB connections
 	c.logger.Info("🛑 Closing Postgres...")
 	c.Postgres.Pool.Close()
 

@@ -173,7 +173,8 @@ curl -i -X DELETE "http://localhost:8080/api/v1/admin/incidents/&lt;id&gt;/" \
 </details>
 
 <hr/>
-
+<div> <h2>UI</h2> <p> В проекте есть <b>UI-интерфейс</b> (веб-страница), который работает поверх этого API и позволяет удобнее 
+пользоваться сервисом. </p> <ul> <li>Смотреть список инцидентов и их статусы.</li> <li>Создавать/обновлять/удалять инциденты (с использованием API key).</li> <li>Проверять координаты через публичный endpoint <code>/api/v1/location/check</code>.</li> </ul> <p> UI доступен после запуска Docker Compose на : <code>http://localhost:8080/</code> </p> </div>
 <h2><span id="tests">Тесты</span></h2>
 
 <p>В проекте есть:</p>

@@ -29,7 +29,7 @@ func (p *StatsRepo) SaveCheck(ctx context.Context, check *domain.LocationCheck) 
 	}
 
 	const query = `
-INSERT INTO location_checks (id, userid, lat, lng, incidentids, checkedat)
+INSERT INTO location_checks (id, user_id, lat, lng, incident_ids, checked_at)
 VALUES ($1, $2, $3, $4, $5, $6)
 `
 
@@ -63,12 +63,11 @@ func (p *StatsRepo) CountUniqueUsers(ctx context.Context, minutes int) (int64, e
 		return 0, fmt.Errorf("%s: %w", op, e.ErrInvalidInput)
 	}
 
-	// ✅ безопасная параметризация интервала: число * interval '1 minute' [web:433]
 	const query = `
-		SELECT COUNT(DISTINCT userid)
+SELECT COUNT(DISTINCT user_id)
 FROM location_checks
-WHERE checkedat >= NOW() - make_interval(mins => $1)
-	`
+WHERE checked_at >= NOW() - ($1 * INTERVAL '1 minute')
+`
 
 	var cnt int64
 	if err := p.pool.QueryRow(ctx, query, minutes).Scan(&cnt); err != nil {
@@ -77,7 +76,7 @@ WHERE checkedat >= NOW() - make_interval(mins => $1)
 			slog.Any("error", err),
 			slog.Int("minutes", minutes),
 		)
-		return 0, fmt.Errorf("%s: %w", op, err) // ✅ ВАЖНО: без e.WrapError
+		return 0, fmt.Errorf("%s: %w", op, err)
 	}
 
 	return cnt, nil
@@ -93,7 +92,7 @@ func (p *StatsRepo) CountTotalChecks(ctx context.Context, minutes int) (int64, e
 	const query = `
 SELECT COUNT(*)
 FROM location_checks
-WHERE checkedat >= NOW() - make_interval(mins => $1)
+WHERE checked_at >= NOW() - make_interval(mins => $1)
 
 `
 	var cnt int64

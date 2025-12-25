@@ -160,7 +160,6 @@ func TestIncidentAdmin_List_OnlyActive_WithPagination(t *testing.T) {
 
 	repo := NewIncidentAdmin(testPool)
 
-	// Вставим 3 активных и 1 неактивный
 	var ids []uuid.UUID
 	for i := 0; i < 3; i++ {
 		inc := &domain.Incident{
@@ -168,7 +167,7 @@ func TestIncidentAdmin_List_OnlyActive_WithPagination(t *testing.T) {
 			Lng:      20 + float64(i),
 			RadiusKM: 1,
 			Status:   domain.IncidentActive,
-			// created_at зададим руками для предсказуемого порядка
+
 			CreatedAt: time.Date(2025, 1, 1, 0, 0, i, 0, time.UTC),
 		}
 		if err := repo.Create(context.Background(), inc); err != nil {
@@ -188,7 +187,6 @@ func TestIncidentAdmin_List_OnlyActive_WithPagination(t *testing.T) {
 		t.Fatalf("Create inactive: %v", err)
 	}
 
-	// total считает только active
 	list1, total, err := repo.List(context.Background(), 1, 2)
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -199,7 +197,7 @@ func TestIncidentAdmin_List_OnlyActive_WithPagination(t *testing.T) {
 	if len(list1) != 2 {
 		t.Fatalf("expected len=2 got=%d", len(list1))
 	}
-	// сортировка created_at DESC: последний созданный (сек=2) должен быть первым
+
 	if list1[0].CreatedAt.Before(list1[1].CreatedAt) {
 		t.Fatalf("expected DESC order by created_at")
 	}
@@ -295,7 +293,6 @@ func TestIncidentAdmin_Delete_SoftDelete(t *testing.T) {
 		t.Fatalf("Delete: %v", err)
 	}
 
-	// После delete в List не должен попадать (т.к. status='inactive')
 	list, total, err := repo.List(context.Background(), 1, 10)
 	if err != nil {
 		t.Fatalf("List: %v", err)
@@ -304,7 +301,6 @@ func TestIncidentAdmin_Delete_SoftDelete(t *testing.T) {
 		t.Fatalf("expected empty list after delete, total=%d len=%d", total, len(list))
 	}
 
-	// Повторный delete должен вернуть not found (по твоему WHERE status='active')
 	err = repo.Delete(context.Background(), inc.ID)
 	if err == nil {
 		t.Fatalf("expected error")
@@ -334,7 +330,6 @@ func TestIncidentAdmin_Create_LngLatOrder_RoundTrip(t *testing.T) {
 		t.Fatalf("Get: %v", err)
 	}
 
-	// Проверяем, что не перепутали местами (lng,lat) при ST_MakePoint. [web:716]
 	if got.Lat != inc.Lat || got.Lng != inc.Lng {
 		t.Fatalf("expected round-trip lat/lng equal; got=(%v,%v) want=(%v,%v)", got.Lat, got.Lng, inc.Lat, inc.Lng)
 	}

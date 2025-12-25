@@ -11,7 +11,6 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 )
 
-// В Handler добавь методы:
 func (h *Handler) handleError(w http.ResponseWriter, err error) {
 	var status int
 	switch {

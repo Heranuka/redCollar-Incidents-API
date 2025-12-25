@@ -47,7 +47,6 @@ func (h *Handler) PublicLocationCheck(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// запрещаем мусор после JSON
 	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		l.Warn("extra data after JSON", slog.Any("error", err))
 		h.writeJSON(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON"})

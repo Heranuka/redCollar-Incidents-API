@@ -54,10 +54,9 @@ func NewServer(cfg *config.Config, logger *slog.Logger, svc *service.Service) *S
 func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *public.Handler, systemHandler *system.Handler, renderer *render.Renderer, logger *slog.Logger) *chi.Mux {
 	r := chi.NewMux()
 
-	// чтобы request_id попал в лог chi.Logger
-	r.Use(chimw.RequestID) // [web:243]
+	r.Use(chimw.RequestID)
 	r.Use(chimw.Recoverer)
-	r.Use(chimw.Logger) // [web:243]
+	r.Use(chimw.Logger)
 
 	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
 		renderer.Render(w, "index.html", nil)
@@ -71,12 +70,11 @@ func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *
 		renderer.Render(w, "admin.html", nil)
 	})
 	r.Route("/api/v1", func(api chi.Router) {
-		// ADMIN
+
 		api.Route("/admin", func(ar chi.Router) {
 			ar.Use(middleware.APIKeyMiddleware(cfg.APIKey))
 			ar.Use(middleware.Limit(2, 5, 10*time.Minute, logger))
 
-			// ✅ stats НЕ внутри incidents
 			ar.Get("/stats", adminHandler.AdminStats)
 
 			ar.Route("/incidents", func(ir chi.Router) {
@@ -91,13 +89,11 @@ func InitRouter(cfg *config.Config, adminHandler *admin.Handler, publicHandler *
 			})
 		})
 
-		// PUBLIC
 		api.Route("/location", func(pr chi.Router) {
 			pr.Use(middleware.Limit(10, 20, 5*time.Minute, logger))
 			pr.Post("/check", publicHandler.PublicLocationCheck)
 		})
 
-		// SYSTEM
 		api.Get("/health", systemHandler.SystemHealth)
 	})
 

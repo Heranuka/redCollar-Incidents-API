@@ -25,13 +25,10 @@ func NewIncidentPublic(pool *pgxpool.Pool, logger *slog.Logger) *IncidentPublic 
 func (p *IncidentPublic) FindNearby(ctx context.Context, lat, lng, radiusKm float64) ([]uuid.UUID, error) {
 	const op = "postgres.Incident.FindNearby"
 
-	// минимальная защита от мусора
 	if lat < -90 || lat > 90 || lng < -180 || lng > 180 || radiusKm <= 0 {
 		return nil, fmt.Errorf("%s: %w", op, e.ErrInvalidInput)
 	}
 
-	// Важно: geo_point (geometry, 4326) -> distance в градусах.
-	// Кастим к geography, чтобы расстояние было в метрах.
 	const query = `
 SELECT id
 FROM incidents

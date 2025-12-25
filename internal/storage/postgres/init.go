@@ -47,7 +47,7 @@ func NewPostgres(ctx context.Context, cfg *config.Config, logger *slog.Logger) (
 	err = pool.Ping(ctx)
 	if err != nil {
 		logger.Error("Failed to ping Postgres database", slog.String("error", err.Error()))
-		pool.Close() // ← ДОБАВЬ: закрой пул при ошибке
+		pool.Close()
 		return nil, e.Wrap("storage.pg.NewPostgres.Ping", err)
 	}
 	logger.Info("Connected to Postgres successfully")
