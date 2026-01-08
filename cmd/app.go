@@ -53,6 +53,20 @@ func Run() error {
 		logger.Info("http server stopped")
 	}()
 
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("🚀 webhookSender goroutine launched")
+		comps.WebhookSender.Run(ctx)
+	}()
+
+	// 3. Запуск Воркера 2
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		logger.Info("🚀 locationChecker goroutine launched")
+		comps.LocationChecker.Run(ctx)
+	}()
 	// Graceful shutdown
 	quitChan := make(chan os.Signal, 1)
 	signal.Notify(quitChan, syscall.SIGINT, syscall.SIGTERM)

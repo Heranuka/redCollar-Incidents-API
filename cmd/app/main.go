@@ -1,12 +1,12 @@
 package main
 
 import (
-	"os"
+	"log"
 	"redCollar/cmd"
 )
 
 func main() {
 	if err := cmd.Run(); err != nil {
-		os.Exit(1)
+		log.Fatal(err)
 	}
 }

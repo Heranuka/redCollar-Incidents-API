@@ -2,7 +2,9 @@ package workers
 
 import (
 	"context"
+	"log"
 	"redCollar/internal/domain"
+	"sync"
 	"time"
 )
 
@@ -20,7 +22,6 @@ type CheckLocationJob struct {
 type LocationChecker struct {
 	incidents IncidentCacheService
 	jobs      chan CheckLocationJob
-	cancel    context.CancelFunc
 	poolSize  int
 }
 
@@ -32,12 +33,23 @@ func NewLocationChecker(incidents IncidentCacheService, poolSize int) *LocationC
 	}
 }
 
-func (w *LocationChecker) Start(ctx context.Context) {
+func (w *LocationChecker) Run(ctx context.Context) {
+	var wg sync.WaitGroup
+
 	for i := 0; i < w.poolSize; i++ {
-		go w.worker(ctx, w.jobs)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			w.worker(ctx, w.jobs)
+		}()
 	}
 
-	go w.producer(ctx)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		w.producer(ctx)
+	}()
+	wg.Wait()
 }
 
 func (w *LocationChecker) producer(ctx context.Context) {
@@ -51,7 +63,8 @@ func (w *LocationChecker) producer(ctx context.Context) {
 		case <-ticker.C:
 			_, err := w.incidents.GetActive(ctx)
 			if err != nil {
-				return
+				log.Print("запрос сдох у GetActive в check_location.go/producer")
+				continue
 			}
 		}
 	}
@@ -60,10 +73,15 @@ func (w *LocationChecker) producer(ctx context.Context) {
 func (w *LocationChecker) worker(ctx context.Context, jobs <-chan CheckLocationJob) {
 	for {
 		select {
-		case job := <-jobs:
-			w.processJob(ctx, job)
 		case <-ctx.Done():
 			return
+		default: // Чтобы не блокироваться
+			select {
+			case job := <-jobs:
+				w.processJob(ctx, job)
+			case <-ctx.Done():
+				return
+			}
 		}
 	}
 }
@@ -87,11 +105,6 @@ func (w *LocationChecker) processJob(ctx context.Context, job CheckLocationJob) 
 }
 
 func filterNearby(incidents []domain.CachedIncident, lat, lng float64) []domain.NearbyIncident {
-
 	var result []domain.NearbyIncident
 	return result
-}
-
-func (w *LocationChecker) Stop() {
-	w.cancel()
 }

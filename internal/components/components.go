@@ -22,7 +22,7 @@ type Components struct {
 	Redis           *redis2.Redis
 	WebhookQ        *redis2.WebhookQueue
 	LocationChecker *workers.LocationChecker
-	webhookSender   *service.WebhookSender // ← ДОБАВИЛИ!
+	WebhookSender   *service.WebhookSender // ← ДОБАВИЛИ!
 }
 
 func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger) (*Components, error) {
@@ -49,20 +49,12 @@ func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		slog.String("url", cfg.Webhook.URL),
 		slog.String("queue", "webhooks:queue")) // ← ИСПРАВИЛИ!
 
-	go func() {
-		logger.Info("🚀 webhookSender goroutine launched")
-		webhookSender.Run(ctx)
-	}()
-
 	cache := redis2.NewIncidentCache(redisClient)
 	adminSvc := service.NewAdminIncidentService(storage.AdminIncidents(), cache)
 	statsRepo := storage.Stats()
 	publicSvc := service.NewPublicIncidentService(cache, statsRepo, webhookQueue, logger, 1.0)
 	statsSvc := service.NewStatsService(storage.Stats())
 	locationChecker := workers.NewLocationChecker(cache, 10)
-
-	logger.Info("🚀 Starting locationChecker")
-	locationChecker.Start(ctx)
 
 	srv := service.NewService(adminSvc, publicSvc, statsSvc)
 
@@ -76,7 +68,7 @@ func InitComponents(ctx context.Context, cfg *config.Config, logger *slog.Logger
 		Redis:           redisClient,
 		WebhookQ:        webhookQueue,
 		LocationChecker: locationChecker,
-		webhookSender:   webhookSender,
+		WebhookSender:   webhookSender,
 	}, nil
 }
 
@@ -108,11 +100,6 @@ func SetupLogger(env string) *slog.Logger {
 func (c *Components) ShutdownAll() {
 	start := time.Now()
 	c.logger.Info("🛑 Завершение работы компонентов началось")
-
-	if c.LocationChecker != nil {
-		c.logger.Info("🛑 Stopping locationChecker...")
-		c.LocationChecker.Stop()
-	}
 
 	c.logger.Info("🛑 Closing Postgres...")
 	c.Postgres.Pool.Close()
