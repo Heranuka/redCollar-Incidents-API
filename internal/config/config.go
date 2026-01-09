@@ -35,6 +35,10 @@ type PostgresConfig struct {
 	User     string `json:"user"`
 	Password string `json:"password,omitempty"`
 	SSLMode  string `json:"ssl_mode"`
+
+	MaxConns        int32
+	MinConns        int32
+	MaxConnLifetime time.Duration
 }
 
 type RedisConfig struct {
@@ -65,12 +69,15 @@ func Load(ctx context.Context) (*Config, error) {
 			ShutdownTimeout: getEnvDuration("HTTP_SHUTDOWN_TIMEOUT", 10*time.Second),
 		},
 		Postgres: PostgresConfig{
-			Host:     getEnv("POSTGRES_HOST", "pg-local"),
-			Port:     getEnvInt("POSTGRES_PORT", 5432),
-			Database: getEnv("POSTGRES_DB", "redcollar_db"),
-			User:     getEnv("POSTGRES_USER", "postgres"),
-			Password: getEnv("POSTGRES_PASSWORD", "postgres"),
-			SSLMode:  getEnv("POSTGRES_SSL_MODE", "disable"),
+			Host:            getEnv("POSTGRES_HOST", "pg-local"),
+			Port:            getEnvInt("POSTGRES_PORT", 5432),
+			Database:        getEnv("POSTGRES_DB", "redcollar_db"),
+			User:            getEnv("POSTGRES_USER", "postgres"),
+			Password:        getEnv("POSTGRES_PASSWORD", "postgres"),
+			SSLMode:         getEnv("POSTGRES_SSL_MODE", "disable"),
+			MaxConns:        20,
+			MinConns:        1,
+			MaxConnLifetime: 1 * time.Hour,
 		},
 		Redis: RedisConfig{
 			Addr:     getEnv("REDIS_ADDR", "redis-local:6379"),
